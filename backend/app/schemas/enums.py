@@ -69,3 +69,4 @@ class RunState(str, Enum):
     completed = "completed"
     partial = "partial"
     failed = "failed"
+    cancelled = "cancelled"

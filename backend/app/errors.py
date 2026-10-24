@@ -11,7 +11,7 @@ logger = logging.getLogger("verifai.api")
 
 _CODES = {
     400: "BAD_REQUEST", 401: "UNAUTHENTICATED", 403: "FORBIDDEN",
-    404: "NOT_FOUND", 409: "CONFLICT", 429: "RATE_LIMITED",
+    404: "NOT_FOUND", 409: "CONFLICT", 429: "RATE_LIMITED", 503: "SERVICE_UNAVAILABLE",
 }
 
 

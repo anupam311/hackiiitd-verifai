@@ -34,6 +34,7 @@ async def discover_with_policy(
     request: DiscoverySearchRequest,
     policy: RetryPolicy = RetryPolicy(),
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    on_retry: Callable[[int, str, float], None] | None = None,
 ) -> DiscoveryResult:
     for attempt in range(1, policy.max_attempts + 1):
         try:
@@ -46,5 +47,8 @@ async def discover_with_policy(
         logger.warning("discovery attempt=%d provider=%s code=%s", attempt, provider.name, err.code)
         if not err.transient or attempt == policy.max_attempts:
             raise err
-        await sleep(policy.delay_for(attempt, getattr(err, "retry_after_s", None)))
+        delay = policy.delay_for(attempt, getattr(err, "retry_after_s", None))
+        if on_retry:
+            on_retry(attempt, err.code, delay)
+        await sleep(delay)
     raise AssertionError("unreachable")
