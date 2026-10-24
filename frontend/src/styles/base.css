@@ -1,0 +1,35 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body { font-family: var(--font); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+body.no-scroll { overflow: hidden; }
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure, blockquote { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img, svg { max-width: 100%; }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.skip-link { position: absolute; left: 12px; top: -48px; z-index: 100; background: var(--purple); color: #fff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 700; }
+.skip-link:focus { top: 12px; }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.link { color: var(--purple); font-weight: 600; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+[data-theme="dark"] .link { color: #b4a8ff; }
+.link-btn { background: none; border: 0; color: var(--purple); font-weight: 700; font-size: 12px; padding: 4px 0; text-decoration: none; }
+.link-btn:hover { text-decoration: underline; }
+[data-theme="dark"] .link-btn { color: #b4a8ff; }
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } * { scroll-behavior: auto !important; transition: none !important; } }
+.stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.stack-sm { display: grid; gap: 10px; }
+.plain-list { display: grid; gap: 6px; padding-left: 16px; list-style: disc; }
+.row-links { display: flex; gap: 14px; }
+.badge-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.unknown-cell { color: var(--muted); font-style: italic; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: none; margin-bottom: 10px; }
+.back-link:hover { color: var(--purple); }
