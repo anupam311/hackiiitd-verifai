@@ -12,8 +12,7 @@ LLMs only parse and explain; they never decide a status.
 | Backend: FastAPI app, request IDs, standard error shape, `GET /health` | Implemented |
 | Backend: opportunity, source, claim and discovery schemas | Implemented |
 | Backend: discovery provider interface + mock adapter | Implemented (real TinyFish adapter pending) |
-| Backend: TinyFish adapter | Not started (after B4) |
-| Backend: source normalization and de-duplication | Not started (B5) |
+| Backend: source normalization and de-duplication | Implemented |
 | Backend: OpenAI extraction | Not started (B6) |
 | Backend: verification engine | Not started (B7) |
 | Backend: report and source comparison API | Not started (B8) |

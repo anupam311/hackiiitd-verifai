@@ -50,3 +50,8 @@ Each status should include a concise reason, sources used, last checked time, an
 - Deadlines are stored as `DeadlineInfo`: the original text is always kept, a date is only set when unambiguous, and `is_certain` requires a parsed date (safeguard 3).
 - `Opportunity.status` defaults to `unknown`.
 - Evidence requires a locator and records the extraction method and schema version.
+- `official` is never inferred from a domain alone. Known aggregator and community domains are always classified as such, even if a provider hints otherwise.
+- Failed retrievals (404, 403, 429, 5xx, timeouts) are stored as observations with an outcome and `unknown` freshness. They are never evidence that an opportunity is closed (safeguard 1).
+- A later failed fetch of a URL does not replace an earlier successful observation.
+- Observation freshness uses a 7-day default; per-claim thresholds are defined with the verification engine (B7).
+- Observations with naive or future timestamps are rejected.

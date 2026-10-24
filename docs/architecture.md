@@ -18,7 +18,7 @@
 8. **Testing/observability**: pytest unit/integration tests, Playwright end-to-end flows, structured logs, correlation IDs, and provider-call metrics.
 
 ## Request flow
-`Search request → TinyFish discovery → source capture → extraction → normalized opportunity → claim verification → report persistence → frontend report`
+`Search request → TinyFish discovery → source capture → normalize & de-duplicate → extraction → normalized opportunity → claim verification → report persistence → frontend report`
 
 For recheck:
 `Saved opportunity → fetch current sources → new snapshot → compare normalized claims → mark changes/conflicts → persist run → history UI`

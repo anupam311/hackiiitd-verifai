@@ -46,3 +46,6 @@ Validation enforces: http(s) URLs only; timezone-aware datetimes, stored in UTC;
 - `mock.py`: scriptable provider for tests (contains no data of its own)
 
 A real TinyFish adapter is not implemented yet. It must implement `DiscoveryProvider`, set `retrieved_at` at fetch time, and raise the `Provider*` errors.
+
+## Normalization (`app/discovery/normalize.py`)
+Raw provider records become `SourceObservation`s: URLs are canonicalized (host lowercased; fragment, credentials, default ports and tracking parameters removed), timestamps are converted to UTC, outcomes are derived from the HTTP status, freshness is computed, and duplicates are removed per canonical URL. Invalid records are rejected with a reason only (their URLs are not stored). Source-type and failure rules are in `docs/verification_policy.md`.
