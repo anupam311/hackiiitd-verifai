@@ -113,6 +113,7 @@ class NormalizationResult:
     observations: list[SourceObservation] = field(default_factory=list)
     rejected: list[RejectedRecord] = field(default_factory=list)
     duplicates_dropped: int = 0
+    content_by_observation: dict[str, str] = field(default_factory=dict)  # untrusted page text
 
 
 def normalize_records(records: list[RawSourceRecord], *, now: dt.datetime | None = None,
@@ -125,6 +126,7 @@ def normalize_records(records: list[RawSourceRecord], *, now: dt.datetime | None
     now = now or dt.datetime.now(dt.timezone.utc)
     result = NormalizationResult()
     groups: dict[str, list[SourceObservation]] = {}
+    texts: dict[str, str] = {}
     for i, raw in enumerate(records):
         try:
             obs = normalize_record(raw, now=now, max_age=max_age)
@@ -132,8 +134,13 @@ def normalize_records(records: list[RawSourceRecord], *, now: dt.datetime | None
             result.rejected.append(RejectedRecord(i, str(exc)))
             continue
         groups.setdefault(obs.url, []).append(obs)
+        if raw.content_text:
+            texts[obs.id] = raw.content_text
     for group in groups.values():
         ok = [o for o in group if o.retrieval_outcome == RetrievalOutcome.ok]
-        result.observations.append(max(ok or group, key=lambda o: o.retrieved_at))
+        kept = max(ok or group, key=lambda o: o.retrieved_at)
+        result.observations.append(kept)
+        if kept.id in texts:
+            result.content_by_observation[kept.id] = texts[kept.id]
         result.duplicates_dropped += len(group) - 1
     return result

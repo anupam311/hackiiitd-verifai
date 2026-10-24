@@ -3,6 +3,7 @@ import asyncio
 
 from app.discovery.base import DiscoveryResult, RawSourceRecord
 from app.discovery.errors import ProviderError
+from app.discovery.normalize import canonicalize_url
 from app.schemas.discovery import DiscoverySearchRequest
 
 
@@ -24,6 +25,7 @@ class MockDiscoveryProvider:
         self._complete = complete
         self._delay_s = delay_s
         self.calls = 0
+        self.fetch_calls = 0
 
     async def discover(self, request: DiscoverySearchRequest) -> DiscoveryResult:
         self.calls += 1
@@ -34,3 +36,11 @@ class MockDiscoveryProvider:
         return DiscoveryResult(
             records=self._records[: request.limit], warnings=self._warnings, complete=self._complete
         )
+
+    async def fetch(self, urls: list[str]) -> DiscoveryResult:
+        self.fetch_calls += 1
+        if self._errors:
+            raise self._errors.pop(0)
+        wanted = {canonicalize_url(u) for u in urls}
+        keep = [r for r in self._records if canonicalize_url(r.url) in wanted]
+        return DiscoveryResult(records=keep, warnings=self._warnings, complete=self._complete)

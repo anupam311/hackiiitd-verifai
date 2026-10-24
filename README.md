@@ -16,13 +16,14 @@ LLMs only parse and explain; they never decide a status.
 | Backend: OpenAI structured extraction (schema-validated, grounded) | Implemented (not yet run against the live API) |
 | Backend: claim-level verification engine (deterministic) | Implemented |
 | Backend: evidence report and source comparison API (in-memory store until B10) | Implemented |
-| Backend: run progress events | Not started (B9) |
+| Backend: discovery pipeline (provider → extract → verify → report) | Implemented, tested with mock providers only |
+| Backend: run progress events (SSE), retries, cancellation, partial results | Implemented |
 | Backend: SQLite persistence | Not started (B10) |
 | Backend: Google / GitHub OAuth | Not started (B11-B12) |
 | Backend: profile and matching | Not started (B13) |
 | Frontend: Next.js dashboard | Separate owner (F1-F12) |
 
-Nothing here presents live opportunity data yet. Any future demo fixtures will be clearly labeled as demo data.
+`POST /api/v1/discovery/search` returns `503` until a real discovery provider (TinyFish adapter) and LLM credentials are configured. Nothing is simulated.
 
 ## Layout
 

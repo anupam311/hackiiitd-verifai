@@ -9,6 +9,9 @@ Returns `{ "status": "ok", "service": "verifai-api" }`.
 ## Discovery
 ### `POST /api/v1/discovery/search`
 Request limits (schema defined; the endpoint arrives in a later commit): `query` is required, 1-500 characters; `limit` is 1-50 (default 20); at most 10 `categories` and 10 `fields_of_study`. Category values: `internship`, `scholarship`, `fellowship`, `job`, `research`, `competition`, `other`. Violations return `400 VALIDATION_ERROR`. `state` is one of `queued`, `running`, `completed`, `partial`, `failed`.
+
+Errors: `400 VALIDATION_ERROR`, `429 RATE_LIMITED` (too many runs active), `503 SERVICE_UNAVAILABLE` (no discovery provider or LLM credentials configured).
+
 Request:
 ```json
 {
@@ -21,7 +24,18 @@ Request:
 }
 ```
 Response: `{ "run_id": "…", "state": "queued|running|completed|partial|failed", "opportunities": [], "warnings": [] }`.
-The production implementation should stream progress using Server-Sent Events or poll `GET /api/v1/runs/{run_id}`.
+
+### Runs (implemented)
+- `GET /api/v1/runs/{run_id}?after=N` returns `{run_id, kind, state, started_at, completed_at, elapsed_s, opportunities, warnings, error_code, last_seq, events}`. `opportunities` fills in as each report becomes ready (partial results). `events` contains only events with `seq` greater than `after`.
+- `GET /api/v1/runs/{run_id}/events` is a Server-Sent Events stream of the same events. Each message has `id: <seq>`, `event: <type>` and a JSON `data` payload. Reconnect with the `Last-Event-ID` header (or `?after=`) to resume. The stream ends after the final event. Comment lines (`: keep-alive`) are sent periodically.
+- `POST /api/v1/runs/{run_id}/cancel` returns `202` and is idempotent. Pending work stops; opportunities already saved are kept; the final state is `cancelled`.
+- Unknown run ids return `404 NOT_FOUND`.
+
+Event types: `run.started`, `discovery.started`, `discovery.retry` (`attempt`, `code`, `delay_s`), `discovery.completed` (`records`, `complete`), `normalize.completed` (`observations`, `rejected`, `duplicates`), `extract.started`, `extract.completed` (`facts`, `dropped`), `extract.failed` (`code`), `source.unavailable` (`domain`, `outcome`), `source.no_content`, `opportunity.ready` (`opportunity_id`), and one final event: `run.completed`, `run.partial`, `run.failed` (with `error_code`) or `run.cancelled`.
+
+Events are produced by the pipeline as it works. They never include the search text or page content.
+
+State rules: `completed` means every step succeeded; `partial` means some sources failed extraction, some records were invalid, or the provider returned an incomplete result; `failed` means a provider or credential error stopped the run (`error_code` says which). A source that cannot be retrieved produces a warning, not a failure, and is never treated as evidence the opportunity is closed.
 
 ## Opportunities
 - `GET /api/v1/opportunities` — paginated/filterable opportunities.

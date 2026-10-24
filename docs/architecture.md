@@ -25,6 +25,14 @@ For recheck:
 
 **Reports.** A verification run produces one `VerificationReport` snapshot (claims, evidence with source attribution, sources). The source comparison is derived from the stored report, not stored separately, so the two cannot disagree.
 
+**Runs.** A discovery request starts an in-process run (`backend/app/runs/`). The pipeline reports each real step as an event, and finished opportunities are available before the run ends. Policies:
+- *Retries:* provider calls use a timeout and bounded exponential backoff (3 attempts by default, delay capped at 8 s), only for transient errors. Each retry is an event. LLM calls follow the same rule.
+- *Failure scope:* a provider error or an LLM credential error fails the run. A failed extraction for one source makes the run `partial`.
+- *Limits:* at most 5 active runs; further requests get `429`.
+- *Cancellation:* stops pending work, keeps what was already saved, and ends with `run.cancelled`.
+- *Grouping:* sources are grouped into one opportunity by exact normalized title + organization. Differently worded titles can produce separate opportunities. Fuzzy matching is future work. Sources that state no title or organization are not attributed and produce a warning.
+- *Durability:* run state is in memory and single-process. Reports are persisted by B10.
+
 ## Core entities
 - `User`: id, email, display name, avatar URL, created_at
 - `OAuthIdentity`: user_id, provider (`google` or `github`), provider_subject

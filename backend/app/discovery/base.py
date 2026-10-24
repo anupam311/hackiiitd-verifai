@@ -32,3 +32,6 @@ class DiscoveryProvider(Protocol):
     name: str
 
     async def discover(self, request: DiscoverySearchRequest) -> DiscoveryResult: ...
+    async def fetch(self, urls: list[str]) -> DiscoveryResult:
+        """Re-fetch known URLs (used by rechecks). Records must carry their own fetch-time retrieved_at."""
+        ...

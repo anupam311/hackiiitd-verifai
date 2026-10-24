@@ -70,3 +70,12 @@ No LLM is used here. The rules are documented in `docs/verification_policy.md`.
 - `models.py`: `VerificationReport` (claims with evidence and sources) and `SourceComparison` (per-claim rows across sources, conflict callouts, warnings)
 - `builder.py`: pure functions that assemble both from verifier output
 - `app/repositories/`: `Store` protocol and a non-persistent `InMemoryStore` (replaced by SQLite in B10). The store starts empty; the API never serves invented data.
+
+## Runs (`app/runs/`)
+- `manager.py`: in-process run registry with event log, cancellation, a cap on active runs, and eviction of old finished runs
+- `pipeline.py`: `run_discovery` runs provider → normalize → extract → group → verify → report → store, emitting an event at each real step
+- Routes: `app/routes/discovery.py` (starts a run) and `app/routes/runs.py` (status, SSE events, cancel)
+
+Runs live in memory in a single process, so they are lost on restart. Persisted reports are not (see B10).
+
+When testing the API with runs, use `with TestClient(app) as client:` so one event loop stays alive for the background task.
