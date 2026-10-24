@@ -65,3 +65,8 @@ Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `backend/.env` (no default model is a
 - `models.py`: `EvidenceItem` (input) and `ClaimVerdict` (output)
 
 No LLM is used here. The rules are documented in `docs/verification_policy.md`.
+
+## Reports and comparison (`app/report/`)
+- `models.py`: `VerificationReport` (claims with evidence and sources) and `SourceComparison` (per-claim rows across sources, conflict callouts, warnings)
+- `builder.py`: pure functions that assemble both from verifier output
+- `app/repositories/`: `Store` protocol and a non-persistent `InMemoryStore` (replaced by SQLite in B10). The store starts empty; the API never serves invented data.

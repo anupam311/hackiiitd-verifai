@@ -23,6 +23,8 @@
 For recheck:
 `Saved opportunity → fetch current sources → new snapshot → compare normalized claims → mark changes/conflicts → persist run → history UI`
 
+**Reports.** A verification run produces one `VerificationReport` snapshot (claims, evidence with source attribution, sources). The source comparison is derived from the stored report, not stored separately, so the two cannot disagree.
+
 ## Core entities
 - `User`: id, email, display name, avatar URL, created_at
 - `OAuthIdentity`: user_id, provider (`google` or `github`), provider_subject

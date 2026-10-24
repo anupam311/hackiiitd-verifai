@@ -6,10 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
 from app.errors import new_request_id, register_error_handlers
-from app.routes import health
+from app.repositories.base import Store
+from app.repositories.memory import InMemoryStore
+from app.routes import health, opportunities
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, store: Store | None = None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.log_level)
     prod = settings.is_production
@@ -35,8 +37,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["X-Request-ID"] = request.state.request_id
         return response
 
+    app.state.store = store or InMemoryStore()
     register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(opportunities.router)
     return app
 
 

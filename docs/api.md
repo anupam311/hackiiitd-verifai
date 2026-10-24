@@ -31,6 +31,21 @@ The production implementation should stream progress using Server-Sent Events or
 - `GET /api/v1/opportunities/{opportunity_id}/history` — prior snapshots and changes.
 - `GET /api/v1/opportunities/{opportunity_id}/sources` — source observations and source comparison.
 
+### Implemented response shapes
+`GET /api/v1/opportunities/{id}` returns the opportunity. `is_demo` is true for seeded demo data; `status` is `unknown` unless a confirmed `application_status` claim says otherwise.
+
+`GET /api/v1/opportunities/{id}/report` returns `{run_id, opportunity_id, generated_at, status, summary, claims, sources}`.
+- `summary`: `{total, counts, score_percent, discrepancies, formula}`. `score_percent` is a coverage score, not a probability; `formula` explains it.
+- Each claim has `claim_type`, `status`, `normalized_value`, `explanation`, `next_step`, `checked_at`, `stale`, `needs_review` and `evidence[]`.
+- Each evidence entry has `url`, `domain`, `source_type`, `retrieved_at`, `extracted_value`, `normalized_value`, `excerpt`, `evidence_locator`, `confidence` (extraction confidence), `is_authoritative`, `is_fresh` and `role` (`supports`, `discrepant`, `conflicting`, `ambiguous`).
+
+`GET /api/v1/opportunities/{id}/sources` returns `{sources, rows, conflicts, warnings}`.
+- `sources` are ordered official/employer/institution first and include sources that failed to load, with their `retrieval_outcome`.
+- Each row is one claim: `agreement` is `agree`, `partial`, `conflict` or `missing`, with a cell per source (`agrees`, `differs`, `ambiguous`, `missing`, `unavailable`).
+- `conflicts` lists the values from every source involved. `warnings` covers stale evidence and failed retrievals.
+
+Both report endpoints return `404 NOT_FOUND` when the opportunity or its report does not exist.
+
 ## Saved opportunities
 - `GET /api/v1/saved` — current user's saved opportunities.
 - `PUT /api/v1/saved/{opportunity_id}` — save an opportunity; idempotent.
