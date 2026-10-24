@@ -1,0 +1,75 @@
+/* Design tokens — extends the starter palette (navy / purple / line / bg). Light is the default theme. */
+:root {
+  --navy: #101b3a;
+  --navy-2: #18264c;
+  --navy-3: #0d1630;
+  --navy-sel: #2b2f78;
+  --navy-line: #2b3760;
+  --on-navy: #d6def5;
+  --on-navy-muted: #9fadd0;
+
+  --purple: #6045f5;
+  --purple-600: #4f35e0;
+  --purple-50: #f0edff;
+  --purple-100: #e4dfff;
+  --blue: #2f6bff;
+  --blue-50: #eaf1ff;
+
+  --green: #168653;
+  --green-bg: #e6f6ee;
+  --green-line: #bfe6d1;
+  --amber: #9a6408;
+  --amber-bg: #fff3d9;
+  --amber-line: #f4dca6;
+  --red: #c23535;
+  --red-bg: #fdeaea;
+  --red-line: #f3c2c2;
+  --gray: #5a6784;
+  --gray-bg: #eef1f7;
+  --gray-line: #dbe1ee;
+
+  --ink: #15213f;
+  --ink-2: #344263;
+  --muted: #6b7794;
+  --line: #e2e8f5;
+  --line-strong: #cfd8ec;
+  --bg: #f5f7fc;
+  --surface: #ffffff;
+  --surface-2: #f8faff;
+  --focus: #6045f5;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgba(24, 38, 76, 0.04), 0 3px 12px rgba(32, 54, 92, 0.05);
+  --shadow-pop: 0 10px 30px rgba(16, 27, 58, 0.18);
+  --sidebar-w: 224px;
+  --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --ink: #e8ecfa;
+  --ink-2: #c3cce6;
+  --muted: #98a4c3;
+  --line: #27325a;
+  --line-strong: #36427a;
+  --bg: #0b1127;
+  --surface: #131b36;
+  --surface-2: #17203f;
+  --purple-50: #241f55;
+  --purple-100: #2e2868;
+  --blue-50: #172a58;
+  --green: #5ed39a;
+  --green-bg: #12301f;
+  --green-line: #1e5a3b;
+  --amber: #f0bf5b;
+  --amber-bg: #3a2a0c;
+  --amber-line: #5e4513;
+  --red: #ff8686;
+  --red-bg: #3b1518;
+  --red-line: #6a2a2e;
+  --gray: #aab5d3;
+  --gray-bg: #1d2748;
+  --gray-line: #2e3a63;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --focus: #a99bff;
+}
