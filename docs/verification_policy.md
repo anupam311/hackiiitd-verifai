@@ -59,6 +59,8 @@ Each status should include a concise reason, sources used, last checked time, an
 - Page text is treated as untrusted data in the prompt, and the prompt delimiter is removed from page text so it cannot close the data block.
 - Pages longer than 30,000 characters are truncated and flagged; at most 30 facts are accepted per page.
 - Invalid, refused or truncated model output fails that source's extraction. It is never retried and never guessed.
+- Recheck comparison (safeguard 8): claims are reported as `changed`, `appeared`, `disappeared` or `became_stale`. A claim that went from evidence-backed to `unavailable` is flagged as "evidence unavailable", never as "information changed". Staleness with an unchanged value is reported as `became_stale`, not as a value change.
+- Older snapshots are immutable, so before/after comparisons stay reproducible.
 
 ## Decision rules (as implemented)
 

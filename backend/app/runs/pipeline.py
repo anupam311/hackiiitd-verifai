@@ -159,3 +159,48 @@ async def run_discovery(ctx: RunContext, request: DiscoverySearchRequest, deps: 
         ctx.emit("opportunity.ready", "An opportunity report is ready.", opportunity_id=opp.id)
 
     return RunState.partial if (partial or not result.complete) else RunState.completed
+
+
+async def run_recheck(ctx: RunContext, opportunity_id: str, deps: PipelineDeps) -> RunState:
+    """Re-fetch the sources of the latest report, verify again, store a new snapshot and diff it."""
+    from app.discovery.retry import fetch_with_policy
+    from app.report.diff import diff_reports
+
+    now = deps.clock()
+    opp, prev = deps.store.get_opportunity(opportunity_id), deps.store.get_latest_report(opportunity_id)
+    if opp is None or prev is None:
+        raise LookupError("nothing to recheck")
+    urls = [s.url for s in prev.sources]
+    ctx.emit("recheck.started", "Re-fetching known sources.", sources=len(urls))
+
+    def on_retry(attempt: int, code: str, delay: float) -> None:
+        ctx.emit("discovery.retry", f"Transient provider error; retrying in {delay:g}s.",
+                 attempt=attempt, code=code, delay_s=delay)
+
+    result = await fetch_with_policy(deps.provider, urls, deps.retry, on_retry=on_retry)
+    ctx.emit("discovery.completed", "Provider returned results.", records=len(result.records),
+             complete=result.complete)
+    for w in result.warnings:
+        ctx.warn(sanitize(w, 200))
+
+    ingested, partial = await ingest(ctx, result.records, deps, now)
+    returned = {i.obs.url for i in ingested}
+    missing = [u for u in urls if u not in returned]
+    if missing:
+        ctx.warn(f"{len(missing)} previously known source(s) returned no result.")
+    sources = [i.obs for i in ingested]
+    verdicts = verify_opportunity(evidence_for(ingested), sources, now)
+    report = build_report(opportunity_id, ctx.run_id, verdicts, sources, now)
+    diff = diff_reports(prev, report)
+
+    updated = opp.model_copy(update={"status": report.status, "updated_at": now,
+                                     "deadline": _deadline_info(verdicts) or opp.deadline})
+    deps.store.save_opportunity(updated)
+    deps.store.save_report(report)
+    ctx.add_opportunity(updated)
+    kinds = [c.change for c in diff.changes]
+    ctx.emit("recheck.diff", "Compared with the previous snapshot.", changed=kinds.count("changed"),
+             appeared=kinds.count("appeared"), disappeared=kinds.count("disappeared"),
+             became_stale=kinds.count("became_stale"), unchanged=diff.unchanged)
+    ctx.emit("opportunity.ready", "An opportunity report is ready.", opportunity_id=opportunity_id)
+    return RunState.partial if (partial or not result.complete) else RunState.completed

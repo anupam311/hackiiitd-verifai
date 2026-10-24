@@ -26,7 +26,8 @@ class TooManyRuns(Exception):
 
 
 class Run:
-    def __init__(self, kind: RunKind, now: dt.datetime):
+    def __init__(self, kind: RunKind, now: dt.datetime, opportunity_id: str | None = None):
+        self.opportunity_id = opportunity_id
         self.id = f"run_{uuid.uuid4().hex[:16]}"
         self.kind = kind
         self.state = RunState.queued
@@ -71,14 +72,17 @@ class RunManager:
     def get(self, run_id: str) -> Run | None:
         return self._runs.get(run_id)
 
-    def start(self, kind: RunKind, work: Work) -> Run:
+    def start(self, kind: RunKind, work: Work, *, opportunity_id: str | None = None) -> Run:
         if sum(1 for r in self._runs.values() if not r.finished) >= self.max_active:
             raise TooManyRuns()
-        run = Run(kind, self.clock())
+        run = Run(kind, self.clock(), opportunity_id)
         self._runs[run.id] = run
         run.task = asyncio.get_running_loop().create_task(self._execute(run, work))
         run.task.add_done_callback(lambda _t, r=run: self._on_task_done(r))
         return run
+
+    def active_for(self, opportunity_id: str) -> bool:
+        return any(r.opportunity_id == opportunity_id and not r.finished for r in self._runs.values())
 
     def cancel(self, run_id: str) -> bool:
         run = self._runs.get(run_id)
@@ -134,7 +138,8 @@ class RunManager:
     def status(self, run: Run, after: int = 0) -> RunStatus:
         end = run.completed_at or self.clock()
         return RunStatus(
-            run_id=run.id, kind=run.kind, state=run.state, started_at=run.started_at,
+            run_id=run.id, kind=run.kind, opportunity_id=run.opportunity_id, state=run.state,
+            started_at=run.started_at,
             completed_at=run.completed_at, elapsed_s=round((end - run.started_at).total_seconds(), 3),
             opportunities=list(run.opportunities), warnings=list(run.warnings), error_code=run.error_code,
             last_seq=len(run.events), events=[e for e in run.events if e.seq > after])

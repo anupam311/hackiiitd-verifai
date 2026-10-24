@@ -24,6 +24,7 @@ class RunEvent(BaseModel):
 class RunStatus(BaseModel):
     run_id: str
     kind: RunKind
+    opportunity_id: str | None = None  # set for rechecks
     state: RunState
     started_at: dt.datetime
     completed_at: dt.datetime | None

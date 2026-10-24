@@ -69,13 +69,20 @@ No LLM is used here. The rules are documented in `docs/verification_policy.md`.
 ## Reports and comparison (`app/report/`)
 - `models.py`: `VerificationReport` (claims with evidence and sources) and `SourceComparison` (per-claim rows across sources, conflict callouts, warnings)
 - `builder.py`: pure functions that assemble both from verifier output
-- `app/repositories/`: `Store` protocol and a non-persistent `InMemoryStore` (replaced by SQLite in B10). The store starts empty; the API never serves invented data.
+- `app/repositories/`: `Store` protocol and `SqliteStore` (stdlib `sqlite3`)
 
 ## Runs (`app/runs/`)
 - `manager.py`: in-process run registry with event log, cancellation, a cap on active runs, and eviction of old finished runs
 - `pipeline.py`: `run_discovery` runs provider → normalize → extract → group → verify → report → store, emitting an event at each real step
 - Routes: `app/routes/discovery.py` (starts a run) and `app/routes/runs.py` (status, SSE events, cancel)
 
-Runs live in memory in a single process, so they are lost on restart. Persisted reports are not (see B10).
+Run state is in memory and lost on restart; reports, opportunities and saved items are persisted in SQLite.
 
 When testing the API with runs, use `with TestClient(app) as client:` so one event loop stays alive for the background task.
+
+## Persistence and history
+`SqliteStore` keeps opportunities, report snapshots (stored as JSON) and saved items. The database path comes from `VERIFAI_DATABASE_URL` (default `sqlite:///./verifai.db`; `sqlite:///:memory:` for tests). Every verification or recheck run adds a new snapshot; old snapshots are never modified. `app/report/diff.py` compares two snapshots (changed, appeared, disappeared, became stale).
+
+`saved` and `recheck` routes use `current_user_id` from `app/auth/deps.py`.
+
+Tests set `VERIFAI_DATABASE_URL` to an in-memory database in `tests/conftest.py`.

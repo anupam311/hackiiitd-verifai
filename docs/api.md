@@ -31,6 +31,18 @@ Response: `{ "run_id": "…", "state": "queued|running|completed|partial|failed"
 - `POST /api/v1/runs/{run_id}/cancel` returns `202` and is idempotent. Pending work stops; opportunities already saved are kept; the final state is `cancelled`.
 - Unknown run ids return `404 NOT_FOUND`.
 
+### Listing, history and recheck (implemented)
+- `GET /api/v1/opportunities?q=&category=&limit=&offset=` returns `{items, limit, offset}`, newest first. `q` matches title or organization (wildcard characters are literal). `limit` is 1-50 (default 20). Filters for location, deadline and level are not implemented yet.
+- `GET /api/v1/opportunities/{id}/history?limit=` returns `{opportunity_id, runs}`, newest first. Each run has `run_id`, `generated_at`, `status`, `summary`, and `changes_since_previous` (null for the oldest snapshot). Changes list each claim that `changed`, `appeared`, `disappeared` or `became_stale`, with old and new status and value, plus `unchanged` count and `status_before`/`status_after`.
+- `POST /api/v1/opportunities/{id}/recheck` (login required) starts a run and returns `202 {run_id, state}`. Errors: `401`, `404` (unknown opportunity, or no earlier report so there are no sources to recheck), `409` (a recheck for this opportunity is already running), `429`, `503` (provider or LLM not configured). Follow it with the Runs endpoints; its events include `recheck.started` and `recheck.diff`. A cancelled or failed recheck leaves history unchanged.
+
+### Saved opportunities (implemented, login required)
+- `GET /api/v1/saved` returns each saved opportunity with `saved_at`, `latest_status`, `latest_summary` and `latest_report_at`.
+- `PUT /api/v1/saved/{id}` is idempotent (the original `saved_at` is kept). `404` if the opportunity does not exist.
+- `DELETE /api/v1/saved/{id}` returns `204` whether or not it was saved, and `404` if the opportunity does not exist.
+
+Saved lists are per user. Without a valid session these routes return `401 UNAUTHENTICATED`.
+
 Event types: `run.started`, `discovery.started`, `discovery.retry` (`attempt`, `code`, `delay_s`), `discovery.completed` (`records`, `complete`), `normalize.completed` (`observations`, `rejected`, `duplicates`), `extract.started`, `extract.completed` (`facts`, `dropped`), `extract.failed` (`code`), `source.unavailable` (`domain`, `outcome`), `source.no_content`, `opportunity.ready` (`opportunity_id`), and one final event: `run.completed`, `run.partial`, `run.failed` (with `error_code`) or `run.cancelled`.
 
 Events are produced by the pipeline as it works. They never include the search text or page content.

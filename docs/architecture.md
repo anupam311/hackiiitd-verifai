@@ -33,6 +33,8 @@ For recheck:
 - *Grouping:* sources are grouped into one opportunity by exact normalized title + organization. Differently worded titles can produce separate opportunities. Fuzzy matching is future work. Sources that state no title or organization are not attributed and produce a warning.
 - *Durability:* run state is in memory and single-process. Reports are persisted by B10.
 
+**Persistence and recheck.** SQLite holds opportunities, report snapshots and saved items. The `ClaimSnapshot` entity is stored inside each report's JSON rather than as a separate table; history and diffs are computed from consecutive reports. A recheck re-fetches the sources of the latest report, verifies again, stores a new snapshot, updates the opportunity from it, and compares it with the previous one. If a source now fails, its claims become `unavailable` and the diff says so explicitly; the information is not reported as changed. The opportunity's open/closed status always comes from the latest report, so it can return to `unknown`.
+
 ## Core entities
 - `User`: id, email, display name, avatar URL, created_at
 - `OAuthIdentity`: user_id, provider (`google` or `github`), provider_subject

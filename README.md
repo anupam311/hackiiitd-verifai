@@ -18,7 +18,8 @@ LLMs only parse and explain; they never decide a status.
 | Backend: evidence report and source comparison API (in-memory store until B10) | Implemented |
 | Backend: discovery pipeline (provider → extract → verify → report) | Implemented, tested with mock providers only |
 | Backend: run progress events (SSE), retries, cancellation, partial results | Implemented |
-| Backend: SQLite persistence | Not started (B10) |
+| Backend: SQLite persistence (opportunities, report snapshots, saved items) | Implemented |
+| Backend: recheck with snapshot comparison and history | Implemented, tested with mock providers only |
 | Backend: Google / GitHub OAuth | Not started (B11-B12) |
 | Backend: profile and matching | Not started (B13) |
 | Frontend: Next.js dashboard | Separate owner (F1-F12) |

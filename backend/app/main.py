@@ -11,8 +11,8 @@ from app.discovery.base import DiscoveryProvider
 from app.discovery.retry import RetryPolicy
 from app.errors import new_request_id, register_error_handlers
 from app.repositories.base import Store
-from app.repositories.memory import InMemoryStore
-from app.routes import discovery, health, opportunities, runs
+from app.repositories.sqlite import SqliteStore, sqlite_path
+from app.routes import discovery, health, opportunities, runs, saved
 from app.runs.manager import RunManager
 
 
@@ -60,7 +60,7 @@ def create_app(
         response.headers["X-Request-ID"] = request.state.request_id
         return response
 
-    app.state.store = store or InMemoryStore()
+    app.state.store = store or SqliteStore(sqlite_path())
     app.state.provider, app.state.llm = provider, llm
     app.state.runs = run_manager or RunManager()
     app.state.retry_policy = retry_policy or RetryPolicy()
@@ -70,6 +70,7 @@ def create_app(
     app.include_router(opportunities.router)
     app.include_router(discovery.router)
     app.include_router(runs.router)
+    app.include_router(saved.router)
     return app
 
 

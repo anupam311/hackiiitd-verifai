@@ -29,22 +29,19 @@ class RetryPolicy:
         return delay
 
 
-async def discover_with_policy(
-    provider: DiscoveryProvider,
-    request: DiscoverySearchRequest,
-    policy: RetryPolicy = RetryPolicy(),
-    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-    on_retry: Callable[[int, str, float], None] | None = None,
+async def _with_policy(
+    call: Callable[[], Awaitable[DiscoveryResult]], name: str, policy: RetryPolicy,
+    sleep: Callable[[float], Awaitable[None]], on_retry: Callable[[int, str, float], None] | None,
 ) -> DiscoveryResult:
     for attempt in range(1, policy.max_attempts + 1):
         try:
-            return await asyncio.wait_for(provider.discover(request), timeout=policy.timeout_s)
+            return await asyncio.wait_for(call(), timeout=policy.timeout_s)
         except asyncio.TimeoutError:
             err: ProviderError = ProviderTimeout("provider call timed out")
         except ProviderError as exc:
             err = exc
         # Log provider, attempt and error code only: never queries, tokens or page content.
-        logger.warning("discovery attempt=%d provider=%s code=%s", attempt, provider.name, err.code)
+        logger.warning("discovery attempt=%d provider=%s code=%s", attempt, name, err.code)
         if not err.transient or attempt == policy.max_attempts:
             raise err
         delay = policy.delay_for(attempt, getattr(err, "retry_after_s", None))
@@ -52,3 +49,23 @@ async def discover_with_policy(
             on_retry(attempt, err.code, delay)
         await sleep(delay)
     raise AssertionError("unreachable")
+
+
+async def discover_with_policy(
+    provider: DiscoveryProvider,
+    request: DiscoverySearchRequest,
+    policy: RetryPolicy = RetryPolicy(),
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    on_retry: Callable[[int, str, float], None] | None = None,
+) -> DiscoveryResult:
+    return await _with_policy(lambda: provider.discover(request), provider.name, policy, sleep, on_retry)
+
+
+async def fetch_with_policy(
+    provider: DiscoveryProvider,
+    urls: list[str],
+    policy: RetryPolicy = RetryPolicy(),
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    on_retry: Callable[[int, str, float], None] | None = None,
+) -> DiscoveryResult:
+    return await _with_policy(lambda: provider.fetch(urls), provider.name, policy, sleep, on_retry)

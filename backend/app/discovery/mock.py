@@ -39,6 +39,8 @@ class MockDiscoveryProvider:
 
     async def fetch(self, urls: list[str]) -> DiscoveryResult:
         self.fetch_calls += 1
+        if self._delay_s:
+            await asyncio.sleep(self._delay_s)
         if self._errors:
             raise self._errors.pop(0)
         wanted = {canonicalize_url(u) for u in urls}
