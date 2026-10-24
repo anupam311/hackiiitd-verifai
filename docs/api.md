@@ -4,7 +4,22 @@ Base URL in development: `http://localhost:8000`. JSON is used for request and r
 
 ## Health
 ### `GET /health`
-Returns `{ "status": "ok", "service": "verifai-api" }`.
+Liveness probe. Returns `{ "status": "ok", "service": "verifai-api", "version": "..." }`. Always fast; no dependencies are checked. Configure as the **liveness** check on your load balancer.
+
+### `GET /health/ready`
+Readiness probe. Verifies the database is reachable. Returns `{ "status": "ready", "service": "verifai-api", "version": "..." }` (200) or `503 SERVICE_UNAVAILABLE` with the standard error shape. Configure as the **readiness** check on your load balancer; route traffic only when this returns 200.
+
+## Security response headers
+Every response includes:
+- `X-Content-Type-Options: nosniff` — prevents MIME-type sniffing
+- `X-Frame-Options: DENY` — prevents clickjacking via `<iframe>`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: geolocation=(), camera=(), microphone=()`
+
+Auth endpoints (`/auth/*`) also include `Cache-Control: no-store` so tokens never land in browser or proxy caches.
+
+Every response also carries `X-Request-ID: req_<hex>` which matches `error.request_id` on error responses.
+
 
 ## Discovery
 ### `POST /api/v1/discovery/search`

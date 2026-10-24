@@ -34,7 +34,9 @@ def assert_error_shape(resp, status, code):
 def test_health():
     r = make_client().get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "service": "verifai-api"}
+    data = r.json()
+    assert data["status"] == "ok" and data["service"] == "verifai-api"
+    assert "version" in data
     assert r.headers["X-Request-ID"].startswith("req_")
 
 

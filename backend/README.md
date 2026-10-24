@@ -29,6 +29,22 @@ backend/
 ## Error handling
 Every error response uses the shape in `docs/api.md` and carries an `X-Request-ID` header. Validation errors never echo the submitted input, and unexpected errors never expose exception details.
 
+HTTP 422 (Pydantic's default for body validation errors) is re-mapped to **400 VALIDATION_ERROR** so callers never need to handle two different status codes for invalid input.
+
+## Production settings
+See `docs/deployment.md` for the full deployment guide and production checklist.
+
+Key production features (all implemented in `app/main.py` and `app/config.py`):
+
+- **Security response headers** on every response: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`.
+- **Auth no-cache headers**: `/auth/*` responses always include `Cache-Control: no-store` so tokens are never cached by browsers or proxies.
+- **TrustedHostMiddleware**: enabled when `VERIFAI_TRUSTED_HOSTS` is set. Rejects requests with an unexpected `Host` header with `400`.
+- **Body-size guard**: rejects any request whose `Content-Length` exceeds `VERIFAI_MAX_REQUEST_BODY_BYTES` (default 1 MB) with `413 PAYLOAD_TOO_LARGE` before reading the body.
+- **`/health/ready`** readiness probe: verifies the DB is reachable. Use this (not `/health`) as the load-balancer readiness check.
+- **Startup log summary**: logs active integrations at INFO level without exposing any secret values.
+- **`VERIFAI_ENV=production`**: disables `/docs` and `/openapi.json`.
+
+
 
 ## Schemas (`app/schemas/`)
 - `enums.py`: categories, source types, retrieval outcomes, freshness, claim types, verification statuses, run states
