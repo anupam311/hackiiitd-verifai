@@ -9,13 +9,19 @@ LLMs only parse and explain; they never decide a status.
 | Area | State |
 |---|---|
 | Repo layout and documentation | Implemented |
-| FastAPI backend (health, error shape) | Not started (commit 2) |
-| Next.js dashboard | Not started (commit 3) |
-| TinyFish discovery | Not started (commit 7) |
-| OpenAI extraction | Not started (commit 9) |
-| Verification engine | Not started (commit 10) |
-| SQLite persistence | Not started (commit 14) |
-| Google / GitHub OAuth | Not started (commits 15-16) |
+| Backend: FastAPI app, request IDs, standard error shape, `GET /health` | Implemented |
+| Backend: opportunity, source, claim and discovery schemas | Not started (B3) |
+| Backend: discovery provider interface + mock adapter | Not started (B4) |
+| Backend: TinyFish adapter | Not started (after B4) |
+| Backend: source normalization and de-duplication | Not started (B5) |
+| Backend: OpenAI extraction | Not started (B6) |
+| Backend: verification engine | Not started (B7) |
+| Backend: report and source comparison API | Not started (B8) |
+| Backend: run progress events | Not started (B9) |
+| Backend: SQLite persistence | Not started (B10) |
+| Backend: Google / GitHub OAuth | Not started (B11-B12) |
+| Backend: profile and matching | Not started (B13) |
+| Frontend: Next.js dashboard | Separate owner (F1-F12) |
 
 Nothing here presents live opportunity data yet. Any future demo fixtures will be clearly labeled as demo data.
 
@@ -42,4 +48,12 @@ Never commit real secrets. In production, use the deployment platform's secret m
 
 ## Development
 
-Setup instructions for each side are added in the commit that creates it.
+**Backend** (Python 3.10+):
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+uvicorn app.main:app --reload    # http://localhost:8000/health
+pytest
+```

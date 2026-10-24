@@ -64,3 +64,16 @@ OAuth callbacks must validate state and, for OIDC, nonce; exchange tokens on the
 }
 ```
 Use appropriate HTTP status codes: 400 invalid input, 401 unauthenticated, 403 unauthorized, 404 missing resource, 409 state conflict, 429 rate limit, and 500 unexpected failure. Never return secrets, raw provider tokens, or full unredacted source payloads by default.
+
+### Error codes and headers (implemented)
+| Status | `code` |
+|---|---|
+| 400 | `VALIDATION_ERROR` (invalid body or params), `BAD_REQUEST` |
+| 401 | `UNAUTHENTICATED` |
+| 403 | `FORBIDDEN` |
+| 404 | `NOT_FOUND` |
+| 409 | `CONFLICT` |
+| 429 | `RATE_LIMITED` |
+| 500 | `INTERNAL_ERROR` |
+
+Every response, success or error, includes an `X-Request-ID` header; for errors it equals `error.request_id`. Validation errors do not echo submitted values. `/docs` and `/openapi.json` are disabled when `VERIFAI_ENV=production`.
