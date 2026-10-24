@@ -86,3 +86,19 @@ When testing the API with runs, use `with TestClient(app) as client:` so one eve
 `saved` and `recheck` routes use `current_user_id` from `app/auth/deps.py`.
 
 Tests set `VERIFAI_DATABASE_URL` to an in-memory database in `tests/conftest.py`.
+
+## Authentication (`app/auth/`, `app/routes/auth.py`)
+Sign in with Google uses the OpenID Connect authorization-code flow with PKCE, a one-time `state` bound to the browser by a cookie, and a `nonce` checked inside the verified ID token.
+
+**Set up Google:** Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application). Add the redirect URI `http://localhost:8000/auth/google/callback`. Put the client ID and secret in `backend/.env` as `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`. Without both, `/auth/google/login` returns `503`.
+
+**Try it:** with the API running, open `http://localhost:8000/auth/google/login` in a browser. After signing in you are redirected to `VERIFAI_FRONTEND_URL` (the page may not exist yet). Then open `http://localhost:8000/auth/me` to see your session. Browsers share cookies across ports on `localhost`.
+
+**Security properties**
+- Client secret and tokens stay server-side. The browser never sees them, and responses and logs never include them.
+- The ID token's RS256 signature is checked against Google's published keys, along with issuer, audience, expiry and nonce. Other algorithms (`none`, HS256) are rejected.
+- Sessions are random 256-bit tokens in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` whenever `VERIFAI_PUBLIC_BASE_URL` is https). Only the SHA-256 hash is stored, so logout and expiry take effect on the server, and a copied cookie stops working.
+- A new session is issued on every sign-in (no session fixation). Sessions last `VERIFAI_SESSION_TTL_DAYS` (default 7).
+- After sign-in only same-site relative paths are accepted for `next` (no open redirects). Errors redirect to `/login?error=<code>` using a fixed set of codes.
+- Browser requests with a cross-site `Origin` header on `POST/PUT/PATCH/DELETE` get `403`.
+- An email is stored only if Google marks it verified.

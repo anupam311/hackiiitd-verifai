@@ -20,7 +20,8 @@ LLMs only parse and explain; they never decide a status.
 | Backend: run progress events (SSE), retries, cancellation, partial results | Implemented |
 | Backend: SQLite persistence (opportunities, report snapshots, saved items) | Implemented |
 | Backend: recheck with snapshot comparison and history | Implemented, tested with mock providers only |
-| Backend: Google / GitHub OAuth | Not started (B11-B12) |
+| Backend: Google sign-in, server-side sessions, logout | Implemented (needs your Google credentials; not yet tried against live Google) |
+| Backend: GitHub sign-in, account linking | Not started (B12) |
 | Backend: profile and matching | Not started (B13) |
 | Frontend: Next.js dashboard | Separate owner (F1-F12) |
 

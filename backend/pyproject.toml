@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx2>=0.27"]
+dev = ["pytest>=8", "httpx2>=0.27", "pyjwt[crypto]>=2.8"]
 
 [build-system]
 requires = ["setuptools>=68"]

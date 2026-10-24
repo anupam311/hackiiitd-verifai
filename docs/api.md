@@ -93,7 +93,15 @@ Both report endpoints return `404 NOT_FOUND` when the opportunity or its report 
 - `POST /auth/logout`
 - `GET /auth/me`
 
-OAuth callbacks must validate state and, for OIDC, nonce; exchange tokens on the server; verify identity; and set an `HttpOnly`, `Secure` (in production), `SameSite=Lax` session cookie. Do not expose provider secrets or access tokens to the browser. GitHub email may be private or unverified; handle that case explicitly. Account linking requires a verified matching email or a deliberate authenticated linking flow.
+### Authentication (Google implemented; GitHub in B12)
+- `GET /auth/google/login?next=/path` redirects (302) to Google. It sets a short-lived `HttpOnly` state cookie. `next` must be a same-site relative path, otherwise `/` is used. `503` if Google sign-in is not configured.
+- `GET /auth/google/callback` validates `state` (against the cookie and a single-use server record), exchanges the code on the server with PKCE, verifies the ID token, creates or finds the user, and starts a session. It always answers with a redirect: to `FRONTEND_URL + next` on success, or to `FRONTEND_URL/login?error=<code>` on failure, where code is one of `invalid_state`, `access_denied`, `oauth_failed`.
+- `POST /auth/logout` returns `204`, deletes the server-side session and clears the cookie. It is idempotent and works without a session.
+- `GET /auth/me` returns `{id, email, email_verified, display_name, avatar_url, created_at, providers}` or `401`. `avatar_url` is an external https URL and should be treated as untrusted by the UI.
+
+Session cookie: `verifai_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when the public URL is https. State-changing browser requests carrying an `Origin` header outside the configured origins are rejected with `403 FORBIDDEN`.
+
+For the web app to send the cookie, the frontend and API must be same-site, for example by proxying `/api` and `/auth` through the frontend's own domain. This is handled in the deployment commit.
 
 ## Standard error shape
 ```json
