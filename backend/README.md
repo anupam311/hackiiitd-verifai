@@ -28,3 +28,13 @@ backend/
 
 ## Error handling
 Every error response uses the shape in `docs/api.md` and carries an `X-Request-ID` header. Validation errors never echo the submitted input, and unexpected errors never expose exception details.
+
+
+## Schemas (`app/schemas/`)
+- `enums.py`: categories, source types, retrieval outcomes, freshness, claim types, verification statuses, run states
+- `opportunity.py`: `Opportunity`, `DeadlineInfo`
+- `source.py`: `SourceObservation`
+- `claim.py`: `Claim`, `ClaimEvidence`
+- `discovery.py`: `DiscoverySearchRequest`, `DiscoverySearchResponse`
+
+Validation enforces: http(s) URLs only; timezone-aware datetimes, stored in UTC; an observation's domain must match its URL host; a certain deadline needs a parsed date; every claim needs an explanation; every piece of evidence needs a locator. `Opportunity.is_demo` marks demo data.

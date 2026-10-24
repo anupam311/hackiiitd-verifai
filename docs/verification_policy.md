@@ -45,3 +45,8 @@ For an MVP, prefer “verification coverage/consistency” rather than an uncali
 
 ## User-facing explanation
 Each status should include a concise reason, sources used, last checked time, and a next step when useful (e.g., open official page or recheck). Encourage users to confirm critical details on the official page before applying.
+
+## Implementation notes (backend)
+- Deadlines are stored as `DeadlineInfo`: the original text is always kept, a date is only set when unambiguous, and `is_certain` requires a parsed date (safeguard 3).
+- `Opportunity.status` defaults to `unknown`.
+- Evidence requires a locator and records the extraction method and schema version.

@@ -35,6 +35,12 @@ For recheck:
 - `SavedOpportunity`: user_id, opportunity_id, saved_at
 - `AuditEvent`: actor_id, event_type, entity_id, created_at, metadata
 
+Implemented schema additions (see `backend/app/schemas/`):
+- `Opportunity`: `is_demo` flag; `deadline` is a `DeadlineInfo` (raw text, optional parsed date, timezone, `is_certain`); `status` defaults to `unknown`
+- `SourceObservation`: `retrieval_outcome` (`ok`, `not_found`, `blocked`, `http_error`, `timeout`, `unknown`)
+- `Claim`: `checked_at`
+- `ClaimEvidence`: `extraction_method`, `schema_version`; `confidence` is extraction confidence, not source credibility
+
 ## Verification status model
 - `confirmed`: evidence from an authoritative or sufficiently corroborated source supports the claim.
 - `partially_confirmed`: evidence supports part of the claim or key details remain ambiguous.

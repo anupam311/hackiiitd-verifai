@@ -10,7 +10,7 @@ LLMs only parse and explain; they never decide a status.
 |---|---|
 | Repo layout and documentation | Implemented |
 | Backend: FastAPI app, request IDs, standard error shape, `GET /health` | Implemented |
-| Backend: opportunity, source, claim and discovery schemas | Not started (B3) |
+| Backend: opportunity, source, claim and discovery schemas | Implemented |
 | Backend: discovery provider interface + mock adapter | Not started (B4) |
 | Backend: TinyFish adapter | Not started (after B4) |
 | Backend: source normalization and de-duplication | Not started (B5) |

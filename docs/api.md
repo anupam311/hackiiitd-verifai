@@ -8,6 +8,7 @@ Returns `{ "status": "ok", "service": "verifai-api" }`.
 
 ## Discovery
 ### `POST /api/v1/discovery/search`
+Request limits (schema defined; the endpoint arrives in a later commit): `query` is required, 1-500 characters; `limit` is 1-50 (default 20); at most 10 `categories` and 10 `fields_of_study`. Category values: `internship`, `scholarship`, `fellowship`, `job`, `research`, `competition`, `other`. Violations return `400 VALIDATION_ERROR`. `state` is one of `queued`, `running`, `completed`, `partial`, `failed`.
 Request:
 ```json
 {
