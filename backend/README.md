@@ -38,3 +38,11 @@ Every error response uses the shape in `docs/api.md` and carries an `X-Request-I
 - `discovery.py`: `DiscoverySearchRequest`, `DiscoverySearchResponse`
 
 Validation enforces: http(s) URLs only; timezone-aware datetimes, stored in UTC; an observation's domain must match its URL host; a certain deadline needs a parsed date; every claim needs an explanation; every piece of evidence needs a locator. `Opportunity.is_demo` marks demo data.
+
+## Discovery providers (`app/discovery/`)
+- `base.py`: `DiscoveryProvider` protocol, `RawSourceRecord`, `DiscoveryResult`
+- `errors.py`: `ProviderError` and subclasses; each is transient (retryable) or permanent
+- `retry.py`: `discover_with_policy`, with a per-call timeout and bounded exponential backoff for transient errors only
+- `mock.py`: scriptable provider for tests (contains no data of its own)
+
+A real TinyFish adapter is not implemented yet. It must implement `DiscoveryProvider`, set `retrieved_at` at fetch time, and raise the `Provider*` errors.

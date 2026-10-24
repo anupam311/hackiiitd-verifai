@@ -10,7 +10,7 @@
 ## System components
 1. **Next.js client**: Discover/search, opportunity details, evidence report, saved items, profile, source comparison, and recheck/history views.
 2. **FastAPI API**: validates requests, enforces authorization, orchestrates workflows, and returns typed response models.
-3. **Discovery adapter (TinyFish)**: starts live web discovery/browser tasks and converts provider output to internal source records. Handle rate limits, retries, timeouts, and partial completion.
+3. **Discovery adapter (TinyFish)**: starts live web discovery/browser tasks and converts provider output to internal source records. Handle rate limits, retries, timeouts, and partial completion. Implemented as the `DiscoveryProvider` protocol (`backend/app/discovery/`). Calls go through `discover_with_policy`, which applies a timeout and bounded exponential backoff to transient errors only; permanent errors are never retried. Only a mock adapter exists so far.
 4. **Extraction and reasoning service (OpenAI)**: transforms source text into schema-constrained claims and explains ambiguity. Optional Gemini adapter is evaluated against a benchmark before adoption.
 5. **Verification engine**: applies policy rules to evidence, freshness, date parsing, corroboration, and conflicts.
 6. **Persistence**: SQLite in the MVP for users, opportunities, source observations, claims, verification runs, snapshots, saved items, and audit events.
