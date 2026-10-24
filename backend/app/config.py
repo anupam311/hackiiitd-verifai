@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     session_ttl_days: int = 7
     google_client_id: str | None = Field(default=None, validation_alias="GOOGLE_OAUTH_CLIENT_ID")
     google_client_secret: SecretStr | None = Field(default=None, validation_alias="GOOGLE_OAUTH_CLIENT_SECRET")
+    github_client_id: str | None = Field(default=None, validation_alias="GITHUB_OAUTH_CLIENT_ID")
+    github_client_secret: SecretStr | None = Field(default=None, validation_alias="GITHUB_OAUTH_CLIENT_SECRET")
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai.client import LLMClient, OpenAIClient
+from app.auth.github import GitHubProvider
 from app.auth.providers import GoogleProvider, OAuthProvider
 from app.config import Settings, get_settings
 from app.discovery.base import DiscoveryProvider
@@ -13,7 +14,7 @@ from app.discovery.retry import RetryPolicy
 from app.errors import error_response, new_request_id, register_error_handlers
 from app.repositories.base import Store
 from app.repositories.sqlite import SqliteStore, sqlite_path
-from app.routes import auth, discovery, health, opportunities, runs, saved
+from app.routes import auth, discovery, health, opportunities, profile, runs, saved
 from app.runs.manager import RunManager
 
 
@@ -39,6 +40,9 @@ def create_app(
         if settings.google_client_id and settings.google_client_secret:
             oauth_providers["google"] = GoogleProvider(settings.google_client_id,
                                                        settings.google_client_secret.get_secret_value())
+        if settings.github_client_id and settings.github_client_secret:
+            oauth_providers["github"] = GitHubProvider(settings.github_client_id,
+                                                       settings.github_client_secret.get_secret_value())
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -92,6 +96,7 @@ def create_app(
     app.include_router(runs.router)
     app.include_router(saved.router)
     app.include_router(auth.router)
+    app.include_router(profile.router)
     return app
 
 

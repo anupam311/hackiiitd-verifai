@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 from app.report.builder import build_comparison, build_report
+from app.repositories.memory import InMemoryStore
 from app.repositories.sqlite import SqliteStore
 from app.schemas.enums import (ClaimType as C, OpportunityStatus, RetrievalOutcome, SourceType as T,
                                VerificationStatus as S)

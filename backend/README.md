@@ -102,3 +102,25 @@ Sign in with Google uses the OpenID Connect authorization-code flow with PKCE, a
 - After sign-in only same-site relative paths are accepted for `next` (no open redirects). Errors redirect to `/login?error=<code>` using a fixed set of codes.
 - Browser requests with a cross-site `Origin` header on `POST/PUT/PATCH/DELETE` get `403`.
 - An email is stored only if Google marks it verified.
+
+**Set up GitHub:** GitHub → Settings → Developer settings → OAuth Apps → New OAuth App. Set the callback URL to `http://localhost:8000/auth/github/callback`. Put the client ID and secret in `backend/.env` as `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`. Without both, `/auth/github/login` returns `503`.
+
+GitHub does not issue OIDC ID tokens, so there is no JWT to verify. Instead:
+- The authorization code is exchanged for an access token server-side via `POST https://github.com/login/oauth/access_token`.
+- The stable numeric user ID is fetched from `GET https://api.github.com/user`.
+- The primary verified email is fetched from `GET https://api.github.com/user/emails`.
+- PKCE code challenge is stored in the DB; the verifier is sent to GitHub's token endpoint.
+
+**Account linking:** if a GitHub login presents a verified email that matches an existing verified-email user (e.g. already signed in with Google), the GitHub identity is linked to that account rather than creating a duplicate. Unverified emails are never used for linking.
+
+## Profile API (`app/routes/profile.py`)
+The profile stores a small set of user preferences (education, location, experience_years, interests) to power explainable matching.
+
+- `GET /api/v1/profile` — returns the current user's profile (all fields default to null/empty).
+- `PATCH /api/v1/profile` — partial update. Unspecified fields are preserved. Interests are deduplicated (case-insensitive) and capped at 10. Requires a valid session.
+- `GET /api/v1/profile/match/{opportunity_id}` — returns explainable match reasons (location, interests, experience). **Data-minimization:** raw profile values are never included in the response; only human-readable labels are returned.
+
+Profile data is stored as a JSON blob per user in the `profiles` table. It is never included in search results or shared with other users.
+
+## Testing (`app/repositories/memory.py`)
+`InMemoryStore` implements the full `Store` protocol without any filesystem or SQLite dependency. It is used in tests that need isolation from the database. It is thread-safe but not suitable for production (no persistence, no FK enforcement). All auth methods (sessions, OAuth state, user management, account linking) and profile methods are implemented.

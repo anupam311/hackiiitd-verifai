@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS saved(
   user_id TEXT NOT NULL,
   opportunity_id TEXT NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
   saved_at TEXT NOT NULL, PRIMARY KEY(user_id, opportunity_id));
+CREATE TABLE IF NOT EXISTS profiles(
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  data TEXT NOT NULL);
 """
 
 
@@ -168,6 +171,21 @@ class SqliteStore:
                     (identity.provider, identity.subject, user_id, _ts(now)))
         return self.get_user(user_id)  # type: ignore[return-value]
 
+    def get_user_by_email(self, email: str) -> User | None:
+        """Find a verified-email user. Only users whose email_verified=1 are returned."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT id FROM users WHERE lower(email)=lower(?) AND email_verified=1",
+                (email,)).fetchone()
+        return self.get_user(row[0]) if row else None
+
+    def link_oauth_identity(self, provider: str, subject: str, user_id: str, now: dt.datetime) -> None:
+        """Link an additional OAuth identity to an existing user (account-linking safeguard)."""
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO oauth_identities(provider,subject,user_id,created_at) VALUES(?,?,?,?)",
+                (provider, subject, user_id, _ts(now)))
+
     def create_session(self, token_hash: str, user_id: str, now: dt.datetime, expires_at: dt.datetime) -> None:
         with self._lock, self._conn:
             self._conn.execute("INSERT INTO sessions(token_hash,user_id,created_at,expires_at) VALUES(?,?,?,?)",
@@ -208,3 +226,20 @@ class SqliteStore:
         with self._lock, self._conn:
             self._conn.execute("DELETE FROM sessions WHERE expires_at<=?", (_ts(now),))
             self._conn.execute("DELETE FROM oauth_states WHERE expires_at<=?", (_ts(now),))
+
+    # --- profile ---
+    def get_profile(self, user_id: str) -> dict | None:
+        with self._lock:
+            row = self._conn.execute("SELECT data FROM profiles WHERE user_id=?", (user_id,)).fetchone()
+        if row is None:
+            return None
+        import json
+        return json.loads(row[0])
+
+    def set_profile(self, user_id: str, data: dict) -> None:
+        import json
+        payload = json.dumps(data)
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO profiles(user_id,data) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data",
+                (user_id, payload))

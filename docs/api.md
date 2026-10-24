@@ -103,6 +103,42 @@ Session cookie: `verifai_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure
 
 For the web app to send the cookie, the frontend and API must be same-site, for example by proxying `/api` and `/auth` through the frontend's own domain. This is handled in the deployment commit.
 
+### Authentication (GitHub — implemented in B12)
+- `GET /auth/github/login?next=/path` redirects (302) to GitHub. Sets the same short-lived `HttpOnly` state cookie as Google. `next` must be a same-site relative path. `503` if GitHub sign-in is not configured.
+- `GET /auth/github/callback` validates `state`, exchanges the code for an access token server-side, fetches the GitHub user profile and primary verified email, and starts or links a session. Always redirects: to `FRONTEND_URL + next` on success, or to `FRONTEND_URL/login?error=<code>` on failure (codes: `invalid_state`, `access_denied`, `oauth_failed`).
+- **Account linking:** if the GitHub login's verified email matches an existing user (e.g. a Google account), the GitHub identity is linked to that user rather than creating a second account. Unverified emails are never used for linking.
+- **No JWT verification:** GitHub does not issue OIDC tokens. Identity is asserted by fetching `/user` and `/user/emails` from the GitHub API with the server-side access token.
+
+## Profile
+- `GET /api/v1/profile` — authenticated user's profile (education, location, experience_years, interests). All fields default to null/empty.
+- `PATCH /api/v1/profile` — partial update. Only provided fields are changed. Interests are deduplicated (case-insensitive) and capped at 10 items. Returns the updated profile.
+- `GET /api/v1/profile/match/{opportunity_id}` — explainable match reasons for one opportunity. Returns `{opportunity_id, reasons, overall}`. Each reason has `reason` (label), `detail` (human-readable explanation), and `positive` (bool). `overall` is one of `good_match`, `partial_match`, `no_match`, `unknown`.
+
+All profile routes require a valid session (`401 UNAUTHENTICATED` without one). Raw profile values are **never** echoed in match reasons (data-minimization). Profile data is stored per user and never shared.
+
+### Profile request/response shapes
+`PATCH /api/v1/profile` body (all fields optional):
+```json
+{
+  "education": "B.Tech CS, IIT Delhi",
+  "location": "Bengaluru, India",
+  "experience_years": 0,
+  "interests": ["machine learning", "robotics"]
+}
+```
+`GET /api/v1/profile/match/{id}` response:
+```json
+{
+  "opportunity_id": "opp_abc123",
+  "overall": "partial_match",
+  "reasons": [
+    {"reason": "Location match", "detail": "Your preferred location overlaps...", "positive": true},
+    {"reason": "No interest alignment", "detail": "None of your interests were found...", "positive": false}
+  ]
+}
+```
+
+
 ## Standard error shape
 ```json
 {
