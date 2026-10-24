@@ -13,8 +13,8 @@ LLMs only parse and explain; they never decide a status.
 | Backend: opportunity, source, claim and discovery schemas | Implemented |
 | Backend: discovery provider interface + mock adapter | Implemented (real TinyFish adapter pending) |
 | Backend: source normalization and de-duplication | Implemented |
-| Backend: OpenAI extraction | Not started (B6) |
-| Backend: verification engine | Not started (B7) |
+| Backend: OpenAI structured extraction (schema-validated, grounded) | Implemented (not yet run against the live API) |
+| Backend: claim-level verification engine (deterministic) | Implemented |
 | Backend: report and source comparison API | Not started (B8) |
 | Backend: run progress events | Not started (B9) |
 | Backend: SQLite persistence | Not started (B10) |

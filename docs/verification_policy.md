@@ -55,3 +55,35 @@ Each status should include a concise reason, sources used, last checked time, an
 - A later failed fetch of a URL does not replace an earlier successful observation.
 - Observation freshness uses a 7-day default; per-claim thresholds are defined with the verification engine (B7).
 - Observations with naive or future timestamps are rejected.
+- Extracted values are only accepted when their excerpt is found verbatim in the retrieved page; otherwise they are dropped and counted (safeguards 6 and 9).
+- Page text is treated as untrusted data in the prompt, and the prompt delimiter is removed from page text so it cannot close the data block.
+- Pages longer than 30,000 characters are truncated and flagged; at most 30 facts are accepted per page.
+- Invalid, refused or truncated model output fails that source's extraction. It is never retried and never guessed.
+
+## Decision rules (as implemented)
+
+**Source authority.** `official`, `employer` and `institution` sources are authoritative. `aggregator`, `community` and `other` are not.
+
+**Evidence that counts.** Only evidence from successfully retrieved sources with a normalizable value and extraction confidence of at least 0.5. Anything else is kept as `ambiguous` and shown, but never decides a status.
+
+**Status by case**
+| Situation | Status |
+|---|---|
+| No readable source states the claim (including failed or blocked retrievals) | unavailable |
+| Fresh authoritative evidence, one agreed value | confirmed (differing non-authoritative values stay visible as discrepancies) |
+| Authoritative evidence agrees but is older than the claim's freshness window | partially confirmed, flagged stale |
+| Authoritative sources disagree (structured claims or location/organization) | conflicting |
+| Authoritative sources word eligibility/other claims differently | partially confirmed, needs review (free text is never auto-declared conflicting) |
+| Authoritative source mentions the claim but the value is ambiguous | partially confirmed |
+| Only non-authoritative sources, 2+ domains agree | partially confirmed (never confirmed: independence is not established) |
+| Only non-authoritative sources, one source | unverified |
+| Non-authoritative sources disagree | conflicting |
+| Only ambiguous or low-confidence evidence, no authoritative source | unverified |
+
+**Freshness windows (days):** application status 2, deadline 7, application URL 14, eligibility 30, stipend 30, duration 30, start date 30, location 60, organization 180, other 30.
+
+**Opportunity status.** `open` or `closed` is set only by a confirmed `application_status` claim. A past deadline or a failed fetch never closes an opportunity; a past deadline adds a note instead.
+
+**Known limits.** Aliases such as Bangalore/Bengaluru are not resolved and show as differences. Timezone abbreviations such as IST are not interpreted. Only English month names are parsed. Date ranges and multiple different dates stay ambiguous.
+
+**Score.** Coverage score = 100 x (confirmed x 1 + partially confirmed x 0.5) / claims evaluated. Conflicting, unverified and unavailable claims score 0. It is not a probability.

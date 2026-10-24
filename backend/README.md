@@ -49,3 +49,19 @@ A real TinyFish adapter is not implemented yet. It must implement `DiscoveryProv
 
 ## Normalization (`app/discovery/normalize.py`)
 Raw provider records become `SourceObservation`s: URLs are canonicalized (host lowercased; fragment, credentials, default ports and tracking parameters removed), timestamps are converted to UTC, outcomes are derived from the HTTP status, freshness is computed, and duplicates are removed per canonical URL. Invalid records are rejected with a reason only (their URLs are not stored). Source-type and failure rules are in `docs/verification_policy.md`.
+
+## AI extraction (`app/ai/`)
+- `prompts.py`: versioned prompt (`PROMPT_VERSION`) and schema version. Page text is passed as data between `<page_content>` tags.
+- `models.py`: strict-compatible wire schema (what the model returns) and validated `ExtractedFact`
+- `client.py`: `LLMClient` protocol, `OpenAIClient`, bounded retry for transient errors only
+- `extraction.py`: `extract_from_text` validates, grounds and sanitizes model output
+
+Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `backend/.env` (no default model is assumed). Tests use fake clients and never call the network.
+
+## Verification engine (`app/verification/`)
+- `dates.py`: deterministic date parsing (never guesses a year, day/month order, or which of several dates applies)
+- `normalizers.py`: per-claim-type normalization (dates, status, URL, stipend, duration, free text)
+- `policy.py`: `verify_claim` / `verify_opportunity` assign one status per claim; `summarize` computes the coverage score; `derive_opportunity_status` is the only place an opportunity becomes open or closed
+- `models.py`: `EvidenceItem` (input) and `ClaimVerdict` (output)
+
+No LLM is used here. The rules are documented in `docs/verification_policy.md`.
