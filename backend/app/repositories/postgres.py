@@ -172,7 +172,7 @@ class PostgresStore:
             match = None
             if not row and identity.email and identity.email_verified:
                 match = conn.execute(
-                    "SELECT id FROM users WHERE lower(email)=lower(%s) AND email_verified=1 "
+                    "SELECT id FROM users WHERE lower(email)=lower(%s) AND email_verified=TRUE "
                     "ORDER BY created_at LIMIT 1", (identity.email,)).fetchone()
             if row:
                 user_id = row[0]
@@ -192,9 +192,9 @@ class PostgresStore:
         return self.get_user(user_id)  # type: ignore[return-value]
 
     def get_user_by_email(self, email: str) -> User | None:
-        """Find a verified-email user. Only users whose email_verified=1 are returned."""
+        """Find a verified-email user. Only users whose email_verified=TRUE are returned."""
         with self._pool.connection() as conn:
-            row = conn.execute("SELECT id FROM users WHERE lower(email)=lower(%s) AND email_verified=1",
+            row = conn.execute("SELECT id FROM users WHERE lower(email)=lower(%s) AND email_verified=TRUE",
                                (email,)).fetchone()
         return self.get_user(row[0]) if row else None
 

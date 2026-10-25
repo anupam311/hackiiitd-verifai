@@ -39,8 +39,6 @@ _SECURITY_HEADERS = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
 }
-# Auth paths get a no-store cache header so tokens never land in browser history.
-_AUTH_PATHS = {"/auth"}
 
 
 def create_app(
@@ -58,20 +56,30 @@ def create_app(
     logging.basicConfig(level=settings.log_level)
     prod = settings.is_production
 
+    # --- LLM ---
     if llm is None and settings.openai_api_key and settings.openai_model:
         llm = OpenAIClient(settings.openai_api_key.get_secret_value(), settings.openai_model)
 
+    # --- TinyFish discovery provider ---
+    # Only activated when both the API key is set AND the SDK is installed. If the key is set but
+    # the SDK is missing the app still starts; discovery returns 503 "not configured" per request.
     if provider is None and settings.tinyfish_api_key:
         if tinyfish_sdk_installed():
             provider = TinyFishProvider(
                 settings.tinyfish_api_key.get_secret_value(),
-                max_pages=settings.tinyfish_max_pages, max_concurrency=settings.tinyfish_max_concurrency,
-                agent_timeout_s=settings.tinyfish_agent_timeout_s, stealth=settings.tinyfish_stealth,
-                seed_pages=settings.tinyfish_seed_page_list)
-        else:  # keep the API up; discovery answers 503 "not configured" instead of crashing at startup
-            logger.error("TINYFISH_API_KEY is set but the 'tinyfish' package is not installed; "
-                         "discovery is disabled. Run: pip install tinyfish")
+                max_pages=settings.tinyfish_max_pages,
+                max_concurrency=settings.tinyfish_max_concurrency,
+                agent_timeout_s=settings.tinyfish_agent_timeout_s,
+                stealth=settings.tinyfish_stealth,
+                seed_pages=settings.tinyfish_seed_page_list,
+            )
+        else:  # keep the API up; discovery answers 503 "not configured" instead of crashing
+            logger.error(
+                "TINYFISH_API_KEY is set but the 'tinyfish' package is not installed; "
+                "discovery is disabled. Run: pip install tinyfish"
+            )
 
+    # --- OAuth providers ---
     if oauth_providers is None:
         oauth_providers = {}
         if settings.google_client_id and settings.google_client_secret:
@@ -83,11 +91,12 @@ def create_app(
                 settings.github_client_id,
                 settings.github_client_secret.get_secret_value())
 
+    # --- Lifespan ---
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # Log startup summary — never includes secret values.
+        # Startup: log active integrations — never include secret values.
         logger.info(
-            "verifai startup env=%s providers=%s llm=%s oauth=%s db=%s",
+            "verifai startup env=%s provider=%s llm=%s oauth=%s db=%s",
             settings.env,
             "none" if provider is None else getattr(provider, "name", "custom"),
             "none" if llm is None else getattr(llm, "name", "custom"),
@@ -95,15 +104,16 @@ def create_app(
             settings.database_url.split("://")[0],  # scheme only, not path
         )
         yield
+        # Shutdown: release resources.
         await app.state.runs.shutdown()
-        close_store = getattr(app.state.store, "close", None)
-        if owns_store and close_store is not None:  # never close a store the caller injected
-            close_store()
         close = getattr(app.state.provider, "aclose", None)
         if close is not None:
             await close()
+        if _owns_store:  # never close a store the caller injected (e.g. test fixtures)
+            app.state.store.close()
         logger.info("verifai shutdown complete")
 
+    # --- FastAPI app ---
     app = FastAPI(
         lifespan=lifespan,
         title="VERIFAI API",
@@ -134,13 +144,13 @@ def create_app(
 
     allowed_origins = set(settings.cors_origin_list) | {settings.public_base_url.rstrip("/")}
 
-    # Security headers + auth cache-control
+    # Security headers + auth Cache-Control on every response.
     @app.middleware("http")
     async def security_headers_middleware(request: Request, call_next):
         response = await call_next(request)
         for header, value in _SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
-        # Prevent caching of auth responses (tokens must not land in history/cache)
+        # Prevent auth responses from being cached (tokens must not land in caches)
         if request.url.path.startswith("/auth"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
             response.headers["Pragma"] = "no-cache"
@@ -155,7 +165,7 @@ def create_app(
                 return error_response(request, 403, "FORBIDDEN", "Cross-origin request blocked.")
         return await call_next(request)
 
-    # Request body size guard — rejects oversized payloads early.
+    # Request body size guard — rejects oversized payloads before reading the body.
     max_body = settings.max_request_body_bytes
 
     @app.middleware("http")
@@ -174,7 +184,7 @@ def create_app(
                 pass
         return await call_next(request)
 
-    # Request ID — injected before every other middleware sees the response.
+    # Request ID — attached before every other middleware sees the response.
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         request.state.request_id = new_request_id()
@@ -185,14 +195,22 @@ def create_app(
     # ------------------------------------------------------------------ #
     # App state                                                            #
     # ------------------------------------------------------------------ #
-    owns_store = store is None
-    app.state.store = store or make_store(settings.database_url)
+    _owns_store = store is None
+    app.state.store = store or make_store(
+        settings.database_url,
+        pool_size=settings.database_pool_size,
+    )
     app.state.provider, app.state.llm = provider, llm
     app.state.settings, app.state.oauth_providers = settings, oauth_providers
     app.state.runs = run_manager or RunManager()
+
+    # Retry policy: when TinyFish is active, max_attempts mirrors tinyfish_max_pages and
+    # timeout mirrors the agent timeout. Otherwise use the sensible default.
     if retry_policy is None and isinstance(provider, TinyFishProvider):
-        # Agent runs take far longer than the default 30 s call timeout; retry once at most (each run costs credits).
-        retry_policy = RetryPolicy(max_attempts=2, timeout_s=provider.call_timeout_s)
+        retry_policy = RetryPolicy(
+            max_attempts=settings.tinyfish_max_pages,
+            timeout_s=provider.call_timeout_s,
+        )
     app.state.retry_policy = retry_policy or RetryPolicy()
     app.state.extract_retry_policy = extract_retry_policy or RetryPolicy(max_attempts=3, timeout_s=60.0)
 

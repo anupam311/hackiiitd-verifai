@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:3000"  # comma-separated (a JSON list is also accepted)
     database_url: str = "sqlite:///./verifai.db"
+    # Connection pool size for PostgreSQL (ignored for SQLite).
+    # Neon serverless: keep this low (2-5); each idle connection holds a Neon compute unit.
+    database_pool_size: int = Field(default=5, ge=1, le=20)
 
     # Provider credentials: server-side only. No default model is assumed; choose one explicitly.
     openai_api_key: SecretStr | None = Field(default=None, validation_alias="OPENAI_API_KEY")

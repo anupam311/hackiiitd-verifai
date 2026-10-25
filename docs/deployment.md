@@ -21,7 +21,9 @@ All server-side secrets live in your deployment secret manager. **Never commit `
 |---|---|---|
 | `VERIFAI_ENV` | no | `production` disables `/docs` and `/openapi.json` |
 | `VERIFAI_LOG_LEVEL` | no | `INFO` (default) |
-| `VERIFAI_DATABASE_URL` | no | `sqlite:///./verifai.db` (default); use an absolute path in production |
+| `VERIFAI_DATABASE_URL` | no | `sqlite:///./verifai.db` (default); use an absolute path in production; or a `postgresql://` URL for Neon |
+| `VERIFAI_DATABASE_POOL_SIZE` | no | `5` (default). PostgreSQL only — Neon tip: keep at 2-5 to avoid holding idle compute units |
+
 | `VERIFAI_SESSION_SECRET` | **yes** | Long random string (≥32 chars); rotate if leaked |
 | `VERIFAI_CORS_ORIGINS` | **yes** | Comma-separated or JSON list of allowed browser origins, e.g. `https://app.example.com` |
 | `VERIFAI_PUBLIC_BASE_URL` | **yes** | Where the API is reachable from the browser (builds OAuth redirect URIs), e.g. `https://api.example.com` |

@@ -26,6 +26,9 @@ class InMemoryStore:
         self._oauth_states: dict[str, tuple[OAuthState, dt.datetime]] = {}  # state_hash -> (state, expires_at)
         self._profiles: dict[str, dict[str, Any]] = {}  # user_id -> profile dict
 
+    def close(self) -> None:  # no-op for in-memory store
+        pass
+
     # --- opportunities ---
     def save_opportunity(self, o: Opportunity) -> None:
         with self._lock:

@@ -7,6 +7,7 @@ from app.schemas.opportunity import Opportunity
 
 
 class Store(Protocol):
+    def close(self) -> None: ...  # called by main.py on shutdown
     # --- opportunities ---
     def save_opportunity(self, o: Opportunity) -> None: ...
     def get_opportunity(self, opportunity_id: str) -> Opportunity | None: ...
