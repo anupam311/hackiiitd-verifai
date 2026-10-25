@@ -4,6 +4,9 @@ Evidence-first opportunity discovery and claim verification.
 Verification statuses are assigned by deterministic rules (see `docs/verification_policy.md`).
 LLMs only parse and explain; they never decide a status.
 
+# Live Demo
+https://hackiiitd-verifai.vercel.app/
+
 ## Status: scaffold vs implemented
 
 | Area | State |
