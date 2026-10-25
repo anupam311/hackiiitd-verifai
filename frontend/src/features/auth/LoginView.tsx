@@ -34,6 +34,7 @@ export function LoginView() {
     invalid_state: "The sign-in session expired or was opened in a different browser tab. Please try again.",
     access_denied: "You cancelled the sign-in. Try again whenever you're ready.",
     oauth_failed: "Something went wrong with the sign-in provider. Please try again.",
+    server_error: "A server error occurred while creating your account. Please try again in a moment.",
   };
 
   const providerBtn = (href: string, label: string, icon: React.ReactNode) =>

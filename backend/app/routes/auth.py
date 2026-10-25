@@ -86,14 +86,22 @@ async def callback(provider: Provider, request: Request,
     except AuthFlowError as exc:
         logger.warning("oauth failure provider=%s code=%s", provider, exc.code)
         return _fail(st.settings, "oauth_failed")
+    except Exception:  # noqa: BLE001 — network/JWKS/unexpected; never surfaces provider detail
+        logger.exception("Unexpected error in p.complete() provider=%s", provider)
+        return _fail(st.settings, "oauth_failed")
 
-    user = st.store.find_or_create_user(identity, now)
-    old = request.cookies.get(SESSION_COOKIE)
-    if old:  # new session on every sign-in: no session fixation
-        st.store.delete_session(hash_token(old))
-    token = secrets.token_urlsafe(32)
-    ttl = timedelta(days=st.settings.session_ttl_days)
-    st.store.create_session(hash_token(token), user.id, now, now + ttl)
+    try:
+        user = st.store.find_or_create_user(identity, now)
+        old = request.cookies.get(SESSION_COOKIE)
+        if old:  # new session on every sign-in: no session fixation
+            st.store.delete_session(hash_token(old))
+        token = secrets.token_urlsafe(32)
+        ttl = timedelta(days=st.settings.session_ttl_days)
+        st.store.create_session(hash_token(token), user.id, now, now + ttl)
+    except Exception:  # noqa: BLE001 — DB unavailable, schema missing, etc.
+        logger.exception("Failed to create session after OAuth provider=%s", provider)
+        return _fail(st.settings, "server_error")
+
     resp = RedirectResponse(f"{st.settings.frontend_url.rstrip('/')}{rec.next_path}", status_code=302)
     resp.set_cookie(SESSION_COOKIE, token, max_age=int(ttl.total_seconds()), httponly=True, samesite="lax",
                     secure=_secure(st.settings), path="/")
