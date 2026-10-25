@@ -21,36 +21,39 @@ from app.auth.models import OAuthState, ProviderIdentity, User
 from app.report.models import VerificationReport
 from app.schemas.opportunity import Opportunity
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS opportunities(
+# ---------------------------------------------------------------------------
+# Schema DDL — one statement per element; psycopg3 execute() is single-statement only.
+# ---------------------------------------------------------------------------
+_SCHEMA_STMTS = [
+    """CREATE TABLE IF NOT EXISTS opportunities(
   id TEXT PRIMARY KEY, title TEXT NOT NULL, organization TEXT NOT NULL, category TEXT NOT NULL,
-  updated_at TEXT NOT NULL, data TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS reports(
+  updated_at TEXT NOT NULL, data TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS reports(
   run_id TEXT PRIMARY KEY,
   opportunity_id TEXT NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
-  generated_at TEXT NOT NULL, data TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS idx_reports_opp ON reports(opportunity_id, generated_at DESC);
-CREATE TABLE IF NOT EXISTS users(
-  id TEXT PRIMARY KEY, email TEXT, email_verified INTEGER NOT NULL DEFAULT 0, display_name TEXT,
-  avatar_url TEXT, created_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS oauth_identities(
+  generated_at TEXT NOT NULL, data TEXT NOT NULL)""",
+    "CREATE INDEX IF NOT EXISTS idx_reports_opp ON reports(opportunity_id, generated_at DESC)",
+    """CREATE TABLE IF NOT EXISTS users(
+  id TEXT PRIMARY KEY, email TEXT, email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  display_name TEXT, avatar_url TEXT, created_at TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS oauth_identities(
   provider TEXT NOT NULL, subject TEXT NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL,
-  PRIMARY KEY(provider, subject));
-CREATE TABLE IF NOT EXISTS sessions(
+  PRIMARY KEY(provider, subject))""",
+    """CREATE TABLE IF NOT EXISTS sessions(
   token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS oauth_states(
-  state_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, nonce TEXT NOT NULL, code_verifier TEXT NOT NULL,
-  next_path TEXT NOT NULL, expires_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS saved(
+  created_at TEXT NOT NULL, expires_at TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS oauth_states(
+  state_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, nonce TEXT NOT NULL,
+  code_verifier TEXT NOT NULL, next_path TEXT NOT NULL, expires_at TEXT NOT NULL)""",
+    """CREATE TABLE IF NOT EXISTS saved(
   user_id TEXT NOT NULL,
   opportunity_id TEXT NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
-  saved_at TEXT NOT NULL, PRIMARY KEY(user_id, opportunity_id));
-CREATE TABLE IF NOT EXISTS profiles(
+  saved_at TEXT NOT NULL, PRIMARY KEY(user_id, opportunity_id))""",
+    """CREATE TABLE IF NOT EXISTS profiles(
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  data TEXT NOT NULL);
-"""
+  data TEXT NOT NULL)""",
+]
 
 
 def is_postgres_url(database_url: str) -> bool:
@@ -76,8 +79,13 @@ class PostgresStore:
             check=ConnectionPool.check_connection,  # drop connections Neon closed while the compute slept
             max_idle=240, kwargs={"prepare_threshold": None})  # no prepared statements: PgBouncer-safe
         self._pool.open(wait=True, timeout=60)  # first connect can wake a suspended Neon compute
+        self._init_schema()
+
+    def _init_schema(self) -> None:
+        """Create all tables. psycopg3 execute() is single-statement; iterate the list."""
         with self._pool.connection() as conn:
-            conn.execute(_SCHEMA)
+            for stmt in _SCHEMA_STMTS:
+                conn.execute(stmt)
 
     def close(self) -> None:
         self._pool.close()
@@ -186,7 +194,7 @@ class PostgresStore:
                 conn.execute(
                     "INSERT INTO users(id,email,email_verified,display_name,avatar_url,created_at) "
                     "VALUES(%s,%s,%s,%s,%s,%s)",
-                    (user_id, email, int(email is not None), identity.display_name, identity.avatar_url, _ts(now)))
+                    (user_id, email, email is not None, identity.display_name, identity.avatar_url, _ts(now)))
                 conn.execute("INSERT INTO oauth_identities(provider,subject,user_id,created_at) VALUES(%s,%s,%s,%s)",
                              (identity.provider, identity.subject, user_id, _ts(now)))
         return self.get_user(user_id)  # type: ignore[return-value]

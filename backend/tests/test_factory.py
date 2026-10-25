@@ -30,10 +30,11 @@ def test_sqlite_file_url_returns_sqlite_store(tmp_path):
 
 def test_postgres_scheme_routes_to_postgres(monkeypatch):
     """PostgresStore is selected for postgresql:// URLs — but we don't open a real connection."""
-    # Patch the pool so no network call is made.
-    import psycopg_pool
+    # Patch the name as imported in the postgres module (not the source module).
+    import app.repositories.postgres as pg_mod
 
     class _FakePool:
+        check_connection = None  # referenced as class attr in PostgresStore.__init__
         def __init__(self, *a, **kw): pass
         def open(self, **kw): pass
         def connection(self): return _FakeConn()
@@ -48,7 +49,7 @@ def test_postgres_scheme_routes_to_postgres(monkeypatch):
         def fetchone(self): return None
         def fetchall(self): return []
 
-    monkeypatch.setattr(psycopg_pool, "ConnectionPool", _FakePool)
+    monkeypatch.setattr(pg_mod, "ConnectionPool", _FakePool)
     from app.repositories.postgres import PostgresStore
 
     store = make_store("postgresql://user:pass@localhost/db")
@@ -58,9 +59,10 @@ def test_postgres_scheme_routes_to_postgres(monkeypatch):
 
 def test_postgres_alternate_scheme_routes_to_postgres(monkeypatch):
     """postgres:// (without 'ql') also routes to PostgresStore."""
-    import psycopg_pool
+    import app.repositories.postgres as pg_mod
 
     class _FakePool:
+        check_connection = None  # referenced as class attr in PostgresStore.__init__
         def __init__(self, *a, **kw): pass
         def open(self, **kw): pass
         def connection(self): return _Conn()
@@ -75,7 +77,7 @@ def test_postgres_alternate_scheme_routes_to_postgres(monkeypatch):
         def fetchone(self): return None
         def fetchall(self): return []
 
-    monkeypatch.setattr(psycopg_pool, "ConnectionPool", _FakePool)
+    monkeypatch.setattr(pg_mod, "ConnectionPool", _FakePool)
     from app.repositories.postgres import PostgresStore
 
     store = make_store("postgres://user:pass@localhost/db")

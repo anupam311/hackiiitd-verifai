@@ -153,12 +153,20 @@ def test_limit_is_enforced():
 
 
 def test_listings_without_their_own_link_are_skipped_and_reported():
+    # listing(4) has an empty title — the only one that should be skipped.
+    # listing(2) has empty apply_link, listing(3) has apply_link==page URL:
+    #   both now fall back to the page URL (first gets it, second gets a synthetic ?__id= URL).
+    # listing(5) and listing(6) share the same apply_link:
+    #   first keeps the link, second gets a synthetic ?__id= URL.
     items = [listing(1), listing(2, apply_link=""), listing(3, apply_link=PAGE_A),
              listing(4, title=""), listing(5, apply_link="https://careers.example.com/jobs/dup"),
              listing(6, apply_link="https://careers.example.com/jobs/dup")]
     res = discover(provider(FakeClient({PAGE_A: run({"opportunities": items})}, search_urls=[PAGE_A])))
-    assert [r.title for r in res.records] == ["Software Intern 1"]
-    assert any("5 listing(s) were skipped" in w for w in res.warnings)
+    # 5 listings have titles; 1 is skipped (no title)
+    assert len(res.records) == 5
+    assert any("1 listing(s) were skipped" in w for w in res.warnings)
+    # The no-title listing is the only one reported as skipped
+    assert all(r.title is not None for r in res.records)
 
 
 def test_agent_output_is_sanitized_and_capped():

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Github, LogOut } from "lucide-react";
 import { LogoMark } from "@/components/layout/Logo";
 import { Notice } from "@/components/ui/States";
@@ -26,6 +27,14 @@ export function LoginView() {
   const { user, status, logout } = useSession();
   const health = useApiHealth(!demo);
   const disabled = demo || health === "down";
+  const params = useSearchParams();
+  const authError = params.get("error");
+
+  const errorMessages: Record<string, string> = {
+    invalid_state: "The sign-in session expired or was opened in a different browser tab. Please try again.",
+    access_denied: "You cancelled the sign-in. Try again whenever you're ready.",
+    oauth_failed: "Something went wrong with the sign-in provider. Please try again.",
+  };
 
   const providerBtn = (href: string, label: string, icon: React.ReactNode) =>
     disabled ? (
@@ -54,11 +63,20 @@ export function LoginView() {
           </div>
         ) : (
           <div className="stack">
+            {authError && (
+              <Notice tone="warn" title="Sign-in failed">
+                {errorMessages[authError] ?? "An unexpected error occurred. Please try again."}
+              </Notice>
+            )}
             {demo && <Notice tone="info" title="Sample data is on">Sign-in is disabled in sample mode. Switch sample data off in the sidebar to use the real backend.</Notice>}
             {!demo && health === "down" && <Notice tone="warn" title="API unreachable">The VERIFAI API did not respond, so sign-in cannot start. Check that the backend is running.</Notice>}
             {providerBtn(authUrls.google, "Continue with Google", <GoogleMark />)}
             {providerBtn(authUrls.github, "Continue with GitHub", <Github size={18} aria-hidden />)}
             <Link href="/explore" className="btn btn-ghost">Continue without signing in</Link>
+            <p className="small muted" style={{ textAlign: "center" }}>
+              New here?{" "}
+              <Link href="/signup">Create your account</Link>
+            </p>
           </div>
         )}
 

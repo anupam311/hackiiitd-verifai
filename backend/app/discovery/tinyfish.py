@@ -24,6 +24,7 @@ when the `tinyfish` package is not installed.
 """
 import asyncio
 import datetime as dt
+import hashlib
 import inspect
 import json
 import logging
@@ -190,9 +191,10 @@ def build_goal(request: DiscoverySearchRequest) -> str:
     parts.append(
         f"Return at most {MAX_LISTINGS_PER_PAGE} listings. For each one return title, organization, "
         "category, location, remote (true/false), deadline, status (for example open, closed or rolling), "
-        "apply_link (the link to that specific posting) and page_excerpt (the listing's own wording copied "
-        "exactly as shown, under 600 characters). Report only what the page states; leave a field out "
-        "when the page does not state it. Never guess dates or links.")
+        "apply_link (the direct URL to that posting — if no separate link exists, use the current page URL), "
+        "and page_excerpt (the listing's own wording copied exactly as shown, under 600 characters). "
+        "Report only what the page states; leave a field out when the page does not state it. "
+        "Never guess dates. Always include apply_link even if it is the same as the current page URL.")
     return " ".join(parts)
 
 
@@ -244,14 +246,17 @@ class TinyFishProvider:
             except ImportError:
                 raise ProviderNotConfigured("the tinyfish package is not installed") from None
             try:
-                try:
-                    self._client = AsyncTinyFish(api_key=self._api_key) if self._api_key else AsyncTinyFish()
-                except TypeError:  # constructor takes no api_key: it reads TINYFISH_API_KEY, like radar.py
-                    if self._api_key:
-                        os.environ.setdefault("TINYFISH_API_KEY", self._api_key)
-                    self._client = AsyncTinyFish()
+                if self._api_key:
+                    try:
+                        self._client = AsyncTinyFish(api_key=self._api_key)
+                    except TypeError:
+                        # Older/mock SDK that takes no keyword args: set env var and retry.
+                        os.environ["TINYFISH_API_KEY"] = self._api_key
+                        self._client = AsyncTinyFish()
+                else:
+                    self._client = AsyncTinyFish()  # reads TINYFISH_API_KEY automatically
             except Exception:  # noqa: BLE001 - e.g. no key anywhere; details may echo secrets
-                raise ProviderNotConfigured("TinyFish client could not be created") from None
+                raise ProviderNotConfigured("TinyFish client could not be created — check TINYFISH_API_KEY") from None
         return self._client
 
     async def aclose(self) -> None:
@@ -340,7 +345,7 @@ class TinyFishProvider:
 
         records: list[RawSourceRecord] = []
         complete = True
-        skipped_no_link = 0
+        skipped_no_title = 0
         for page in pages:
             domain = _domain(page.url)
             if page.error is not None or not _is_completed(getattr(page.run, "status", None)):
@@ -354,26 +359,28 @@ class TinyFishProvider:
                 complete = False
                 warnings.append(f"{domain}: the agent returned no usable result.")
                 continue
-            links: dict[str, int] = {}
-            usable = []
+            seen_links: set[str] = set()
             for item in items[:MAX_LISTINGS_PER_PAGE]:
-                link = _http_url(item.get("apply_link"))
-                if _clean(item.get("title")) and link and link != page.url:
-                    usable.append((link, item))
-                    links[link] = links.get(link, 0) + 1
-                else:
-                    skipped_no_link += 1
-            for link, item in usable:
-                if links[link] > 1:  # a shared link cannot identify one listing: it would be deduplicated away
-                    skipped_no_link += 1
+                title = _clean(item.get("title"))
+                if not title:
+                    skipped_no_title += 1
                     continue
+                # Use the dedicated apply_link when available; fall back to the page URL.
+                # Listings that share the same URL (e.g. all on one careers page) get a
+                # synthetic query param so they each produce a distinct, canonicalisable URL.
+                # (Fragments are stripped by canonicalize_url, so we use ?__id= instead.)
+                link = _http_url(item.get("apply_link")) or page.url
+                if link in seen_links:
+                    # Two listings share the same apply_link on this page — disambiguate.
+                    t_hash = hashlib.sha256((page.url + title).encode()).hexdigest()[:10]
+                    link = f"{page.url}?__id={t_hash}"
+                seen_links.add(link)
                 records.append(RawSourceRecord(
-                    url=link, title=_clean(item.get("title"), 300) or None, retrieved_at=page.finished_at,
+                    url=link, title=title or None, retrieved_at=page.finished_at,
                     http_status=None, retrieval_outcome=RetrievalOutcome.ok, source_type_hint=None,
                     content_text=render_listing(item, page.url)))
-        if skipped_no_link:
-            warnings.append(f"{skipped_no_link} listing(s) were skipped because they had no title or no "
-                            "link of their own.")
+        if skipped_no_title:
+            warnings.append(f"{skipped_no_title} listing(s) were skipped because they had no title.")
         if len(records) > request.limit:
             records = records[: request.limit]
             warnings.append(f"Results were limited to {request.limit} listings.")
