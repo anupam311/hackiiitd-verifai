@@ -21,7 +21,8 @@ export type ClaimType =
   | "location"
   | "duration"
   | "start_date"
-  | "organization";
+  | "organization"
+  | "other";
 
 /** Claims that must be checked before a report may be called "verified". */
 export const CORE_CLAIM_TYPES: readonly ClaimType[] = [
@@ -35,6 +36,7 @@ export type OpportunityCategory =
   | "internship"
   | "scholarship"
   | "fellowship"
+  | "job"
   | "research"
   | "grant"
   | "competition"
@@ -63,7 +65,7 @@ export type SourceType =
 
 export type SourceFreshness = "fresh" | "stale" | "unknown";
 
-export type RetrievalOutcome = "ok" | "partial" | "blocked" | "timeout" | "not_found" | "error";
+export type RetrievalOutcome = "ok" | "partial" | "blocked" | "timeout" | "not_found" | "error" | "unknown";
 
 export interface EligibilityRequirement {
   id: string;
@@ -205,7 +207,7 @@ export interface SourceComparison {
 
 /* ───────────── Runs ───────────── */
 
-export type RunState = "queued" | "running" | "completed" | "partial" | "failed";
+export type RunState = "queued" | "running" | "completed" | "partial" | "failed" | "cancelled";
 
 export type RunStepId =
   | "request_received"
@@ -230,6 +232,8 @@ export interface Run {
   state: RunState;
   events: RunEvent[];
   warnings: string[];
+  /** Opportunities the run has finished so far (partial results appear here while it runs). */
+  opportunities?: Opportunity[];
   isSample?: boolean;
 }
 

@@ -5,7 +5,7 @@ import type { Opportunity } from "@/types";
 import { api } from "@/lib/api-client";
 import { describeError } from "@/lib/api-errors";
 import { DEMO_OPPORTUNITIES, DEMO_SAVED_IDS } from "@/lib/dev-fixtures/demo-data";
-import { mapOpportunities } from "@/lib/mappers";
+import { mapSaved } from "@/lib/mappers";
 import { useDemo } from "@/providers/DemoProvider";
 import { useToast } from "@/providers/ToastProvider";
 
@@ -54,11 +54,11 @@ export function SavedProvider({ children }: { children: React.ReactNode }) {
     const ctrl = new AbortController();
     setLoading(true);
     api
-      .get<{ items?: unknown; saved_at?: Record<string, string> }>("/api/v1/saved", undefined, ctrl.signal)
+      .get<unknown>("/api/v1/saved", undefined, ctrl.signal)
       .then((raw) => {
-        const list = mapOpportunities(raw.items);
-        setItems(list);
-        setSavedAt(raw.saved_at ?? {});
+        const saved = mapSaved(raw);
+        setItems(saved.items);
+        setSavedAt(saved.savedAt);
         setLoading(false);
       })
       .catch((e) => {

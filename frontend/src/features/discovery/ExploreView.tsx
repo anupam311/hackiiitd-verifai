@@ -38,7 +38,13 @@ export function ExploreView({ initialQuery = "" }: { initialQuery?: string }) {
   const result = search.data;
   const { run, error: runError } = useRun(result?.run_id ?? null, demo);
 
-  const all = useMemo(() => result?.opportunities ?? [], [result]);
+  // The backend search is asynchronous: the POST answers with a run id and the opportunities appear on
+  // the run as each report finishes. Show both, de-duplicated by id.
+  const all = useMemo(() => {
+    const seen = new Set<string>();
+    return [...(result?.opportunities ?? []), ...(run?.opportunities ?? [])].filter((o) => !seen.has(o.id) && !!seen.add(o.id));
+  }, [result, run]);
+  const warnings = useMemo(() => [...new Set([...(result?.warnings ?? []), ...(run?.warnings ?? [])])], [result, run]);
   const filtered = useMemo(() => sortOpportunities(all.filter((o) => matchesFilters(o, { ...filters, query: "" })), filters), [all, filters]);
   const shown = filtered.slice(0, visible);
 
@@ -46,8 +52,9 @@ export function ExploreView({ initialQuery = "" }: { initialQuery?: string }) {
     setFilters(f);
     setVisible(PAGE_SIZE);
   };
-  const partial = result && (result.state === "partial" || result.state === "failed");
-  const running = result && (result.state === "queued" || result.state === "running");
+  const liveState = run?.state ?? result?.state;
+  const partial = liveState === "partial" || liveState === "failed";
+  const running = !!result && (liveState === "queued" || liveState === "running");
 
   return (
     <div className="page">
@@ -68,13 +75,13 @@ export function ExploreView({ initialQuery = "" }: { initialQuery?: string }) {
         <Card className="run-card">
           <CardHeader title="Search progress" as="h2" />
           <RunTimeline run={run} error={runError} emptyMessage="Waiting for the backend to report the first event…" />
-          <p className="muted small">Progress shows events reported by the backend run. Search runs cannot be cancelled from here because the backend does not expose cancellation.</p>
+          <p className="muted small">Progress shows events reported by the backend run. Opportunities appear below as soon as their reports are ready.</p>
         </Card>
       )}
 
-      {result && result.warnings.length > 0 && (
+      {warnings.length > 0 && (
         <Notice tone={demo ? "info" : "warn"} title={partial ? "Partial results" : demo ? "Sample data" : "Notice from the API"}>
-          {result.warnings.join(" ")}
+          {warnings.join(" ")}
         </Notice>
       )}
       {running && <Notice tone="info" title="Search still running">Results below may be incomplete until the run finishes.</Notice>}
@@ -100,7 +107,7 @@ export function ExploreView({ initialQuery = "" }: { initialQuery?: string }) {
       {search.loading && !result && <SkeletonCards count={3} label="Loading opportunities" />}
       {search.error ? <ErrorState error={search.error} onRetry={search.reload} title="Could not load opportunities" /> : null}
 
-      {!search.loading && !search.error && result && filtered.length === 0 && (
+      {!search.loading && !search.error && result && !running && filtered.length === 0 && (
         <EmptyState
           icon={<SearchX size={22} />}
           title={all.length === 0 ? (submitted ? "No opportunities found" : "No opportunities to show yet") : "No results match these filters"}

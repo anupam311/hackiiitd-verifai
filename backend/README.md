@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI + Python API for VERIFAI. Requires Python 3.10+.
+FastAPI + Python API for VERIFAI. Requires Python 3.11+ (the TinyFish SDK needs it).
 
 ## Run and test
 ```bash
@@ -60,8 +60,23 @@ Validation enforces: http(s) URLs only; timezone-aware datetimes, stored in UTC;
 - `errors.py`: `ProviderError` and subclasses; each is transient (retryable) or permanent
 - `retry.py`: `discover_with_policy`, with a per-call timeout and bounded exponential backoff for transient errors only
 - `mock.py`: scriptable provider for tests (contains no data of its own)
+- `tinyfish.py`: the real TinyFish adapter (see below)
 
-A real TinyFish adapter is not implemented yet. It must implement `DiscoveryProvider`, set `retrieved_at` at fetch time, and raise the `Provider*` errors.
+## TinyFish discovery (`app/discovery/tinyfish.py`)
+Ported from the `radar.py` workshop script. `discover` = radar stage 3 (Search finds pages) + stage 2 (one agent per page, in parallel, same output schema); `VERIFAI_TINYFISH_SEED_PAGES` adds fixed careers pages like radar's `PAGES`; `VERIFAI_TINYFISH_STEALTH=true` is radar's `BrowserProfile.STEALTH`.
+
+**Setup:** `pip install -e ".[dev]"` (installs the `tinyfish` SDK), then set `TINYFISH_API_KEY` in `backend/.env`. Discovery also needs `OPENAI_API_KEY` + `OPENAI_MODEL` because every source goes through extraction. Without the key (or the SDK) the API still starts and `/api/v1/discovery/search` answers `503`.
+
+**How it plugs in**
+- One `RawSourceRecord` per listing the agent reports. Its URL is the listing's own apply link; its text is a plain-text rendering of what the agent reported. That text is then extracted by the LLM and verified by the normal rules.
+- Agent output is untrusted: markup and control characters are stripped, lengths capped, wrong types dropped. Listings with no title, no link of their own, or a link shared with other listings are skipped and counted in a warning.
+- The adapter never sets a source type, so TinyFish results are never "official". A single such source cannot confirm a claim or mark an opportunity open/closed.
+- Failures are not closures: an unreadable page is a warning (discover) or an observation with no content (recheck, so its claims become `unavailable`).
+- Errors map to `Provider*`: 401/403 and a missing SDK/key fail the run; 429/5xx/timeouts are retried (at most 2 attempts, since each run costs credits). If every page fails the call raises; if only some fail the result is partial.
+- Agent runs are slow, so a TinyFish-specific `RetryPolicy` (call timeout derived from page count, concurrency and per-page timeout) replaces the 30 s default.
+- Limits: `VERIFAI_TINYFISH_MAX_PAGES` (default 5), `_MAX_CONCURRENCY` (3), `_AGENT_TIMEOUT_S` (240). Search is free; each agent run costs credits.
+
+**Known limitation:** the evidence text is the agent's report of the page, not raw page HTML, so excerpts are grounded in that report. Recheck re-runs an agent on each listing URL.
 
 ## Normalization (`app/discovery/normalize.py`)
 Raw provider records become `SourceObservation`s: URLs are canonicalized (host lowercased; fragment, credentials, default ports and tracking parameters removed), timestamps are converted to UTC, outcomes are derived from the HTTP status, freshness is computed, and duplicates are removed per canonical URL. Invalid records are rejected with a reason only (their URLs are not stored). Source-type and failure rules are in `docs/verification_policy.md`.
@@ -139,4 +154,4 @@ The profile stores a small set of user preferences (education, location, experie
 Profile data is stored as a JSON blob per user in the `profiles` table. It is never included in search results or shared with other users.
 
 ## Testing (`app/repositories/memory.py`)
-`InMemoryStore` implements the full `Store` protocol without any filesystem or SQLite dependency. It is used in tests that need isolation from the database. It is thread-safe but not suitable for production (no persistence, no FK enforcement). All auth methods (sessions, OAuth state, user management, account linking) and profile methods are implemented.
+`InMemoryStore` implements the full `Store` protocol without any filesystem or SQLite dependency. It is used in tests that need isolation from the database. It is thread-safe but not suitable for production (no persistence, no FK enforcement). All auth methods (sessions, OAuth state, user management, account linking) and profile methods are implemented.

@@ -153,13 +153,24 @@ class SqliteStore:
                     avatar_url=row[4], created_at=_parse(row[5]), providers=providers)
 
     def find_or_create_user(self, identity: ProviderIdentity, now: dt.datetime) -> User:
-        """Existing (provider, subject) -> that user. Otherwise a new user. The email is kept only when
-        the provider says it is verified. (Linking to an existing user is added with GitHub in B12.)"""
+        """Existing (provider, subject) -> that user. Otherwise, if the provider verified an email that
+        belongs to an existing verified-email user, link to that user (never by an unverified email).
+        Otherwise a new user. The email is kept only when the provider says it is verified."""
         with self._lock, self._conn:
             row = self._conn.execute("SELECT user_id FROM oauth_identities WHERE provider=? AND subject=?",
                                      (identity.provider, identity.subject)).fetchone()
+            match = None
+            if not row and identity.email and identity.email_verified:
+                match = self._conn.execute(
+                    "SELECT id FROM users WHERE lower(email)=lower(?) AND email_verified=1 ORDER BY created_at LIMIT 1",
+                    (identity.email,)).fetchone()
             if row:
                 user_id = row[0]
+            elif match:
+                user_id = match[0]
+                self._conn.execute(
+                    "INSERT INTO oauth_identities(provider,subject,user_id,created_at) VALUES(?,?,?,?)",
+                    (identity.provider, identity.subject, user_id, _ts(now)))
             else:
                 user_id = "usr_" + uuid.uuid4().hex[:16]
                 email = identity.email if identity.email_verified and identity.email else None

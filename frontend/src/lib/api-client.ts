@@ -9,7 +9,9 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`);
+  // An empty API_BASE_URL means "same origin" (the Next.js rewrites in next.config.mjs proxy /api and /auth).
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`, origin);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined || v === null || v === "") continue;
@@ -55,9 +57,12 @@ export const api = {
   delete: <T>(path: string) => apiRequest<T>(path, { method: "DELETE" }),
 };
 
+/** Where the backend sends the browser after a successful sign-in (must be a same-site relative path). */
+const AFTER_LOGIN = "/dashboard";
+
 export const authUrls = {
-  google: `${API_BASE_URL}/auth/google/login`,
-  github: `${API_BASE_URL}/auth/github/login`,
+  google: `${API_BASE_URL}/auth/google/login?next=${encodeURIComponent(AFTER_LOGIN)}`,
+  github: `${API_BASE_URL}/auth/github/login?next=${encodeURIComponent(AFTER_LOGIN)}`,
 };
 
 export function runEventsUrl(runId: string): string {

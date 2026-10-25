@@ -12,6 +12,7 @@ const OUTCOME: Record<SourceObservation["outcome"], { label: string; tone: Tone 
   timeout: { label: "Timed out", tone: "gray" },
   not_found: { label: "Not found", tone: "gray" },
   error: { label: "Retrieval error", tone: "gray" },
+  unknown: { label: "Retrieval status unknown", tone: "gray" },
 };
 
 const AUTHORITATIVE = new Set(["official", "institution", "employer"]);

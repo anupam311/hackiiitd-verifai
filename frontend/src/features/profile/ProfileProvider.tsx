@@ -16,6 +16,38 @@ interface ProfileCtx {
 }
 const Ctx = createContext<ProfileCtx | null>(null);
 
+/** Shape of `GET/PATCH /api/v1/profile` (backend/app/schemas/profile.py). */
+interface RemoteProfile {
+  education?: string | null;
+  location?: string | null;
+  experience_years?: number | null;
+  interests?: string[] | null;
+}
+
+/** Fill only the fields the browser does not already have; the local profile is the richer source. */
+function mergeRemote(p: ApplicantProfile, r: RemoteProfile): ApplicantProfile {
+  const interests = Array.isArray(r.interests) ? r.interests.filter((x): x is string => typeof x === "string") : [];
+  return {
+    ...p,
+    degree: p.degree || (typeof r.education === "string" ? r.education : ""),
+    location: p.location || (typeof r.location === "string" ? r.location : ""),
+    experience: p.experience || (typeof r.experience_years === "number" ? `${r.experience_years} years` : ""),
+    researchInterests: p.researchInterests.length > 0 ? p.researchInterests : interests,
+  };
+}
+
+/** Only the four fields the backend stores are sent (data minimisation). */
+function toRemote(p: ApplicantProfile): RemoteProfile {
+  const years = /\d+/.exec(p.experience);
+  const interests = [...new Set([...p.researchInterests, ...p.skills].map((x) => x.trim()).filter(Boolean))].slice(0, 10);
+  return {
+    education: [p.degree, p.institution].map((x) => x.trim()).filter(Boolean).join(", ").slice(0, 200) || null,
+    location: p.location.trim().slice(0, 200) || null,
+    experience_years: years ? Math.min(50, Number(years[0])) : null,
+    interests,
+  };
+}
+
 const KEY_LIVE = "verifai.profile";
 const KEY_SAMPLE = "verifai.profile.sample";
 
@@ -41,9 +73,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setProfile(read(KEY_LIVE) ?? EMPTY_PROFILE);
     const ctrl = new AbortController();
     api
-      .get<Partial<ApplicantProfile>>("/api/v1/profile", undefined, ctrl.signal)
+      .get<RemoteProfile>("/api/v1/profile", undefined, ctrl.signal)
       .then((remote) => {
-        if (remote && typeof remote === "object") setProfile((p) => ({ ...p, ...remote }));
+        if (remote && typeof remote === "object") setProfile((p) => mergeRemote(p, remote));
       })
       .catch(() => {
         /* backend profile is optional; a local profile is used */
@@ -61,7 +93,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
       if (demo) return { synced: false };
       try {
-        await api.patch("/api/v1/profile", next);
+        await api.patch("/api/v1/profile", toRemote(next));
         return { synced: true };
       } catch {
         return { synced: false };

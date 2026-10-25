@@ -31,3 +31,9 @@ class ProviderAuthError(ProviderError):
 
 class ProviderBadResponse(ProviderError):
     code = "PROVIDER_BAD_RESPONSE"
+
+
+class ProviderNotConfigured(ProviderError):
+    """Missing SDK or credentials. Permanent: retrying cannot fix it."""
+
+    code = "PROVIDER_NOT_CONFIGURED"

@@ -17,7 +17,7 @@ const STEPS: { id: RunStepId; label: string }[] = [
   { id: "finished", label: "Finished" },
 ];
 
-const STATE_TONE: Record<Run["state"], Tone> = { queued: "gray", running: "blue", completed: "green", partial: "amber", failed: "red" };
+const STATE_TONE: Record<Run["state"], Tone> = { queued: "gray", running: "blue", completed: "green", partial: "amber", failed: "red", cancelled: "gray" };
 
 /**
  * Renders the steps of a backend run. Each row is driven by an event the backend

@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     openai_model: str | None = Field(default=None, validation_alias="OPENAI_MODEL")
 
+    # TinyFish live discovery (radar.py integration). Without a key the discovery provider is not configured.
+    # Search is free; each agent run costs credits, so max_pages bounds the cost of one discovery request.
+    tinyfish_api_key: SecretStr | None = Field(default=None, validation_alias="TINYFISH_API_KEY")
+    tinyfish_max_pages: int = Field(default=5, ge=1, le=20)  # VERIFAI_TINYFISH_MAX_PAGES
+    tinyfish_max_concurrency: int = Field(default=3, ge=1, le=10)  # agents running at once
+    tinyfish_agent_timeout_s: float = Field(default=240.0, gt=0, le=1800)  # per page
+    tinyfish_stealth: bool = False  # browser_profile=STEALTH for sites that block bots
+    tinyfish_seed_pages: str = ""  # comma-separated careers pages always included (radar.py PAGES)
+
     # Auth. public_base_url is where THIS API is reachable by the browser: it builds the OAuth
     # redirect URI (never derived from request headers). frontend_url is where users land after
     # sign-in.
@@ -69,6 +78,10 @@ class Settings(BaseSettings):
         if not raw:
             return []
         return [h.strip() for h in raw.split(",") if h.strip()]
+
+    @property
+    def tinyfish_seed_page_list(self) -> list[str]:
+        return [u.strip() for u in self.tinyfish_seed_pages.split(",") if u.strip()]
 
     @property
     def is_production(self) -> bool:

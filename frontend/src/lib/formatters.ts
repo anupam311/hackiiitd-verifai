@@ -26,6 +26,7 @@ export const CLAIM_TYPE_LABEL: Record<ClaimType, string> = {
   duration: "Duration",
   start_date: "Start date",
   organization: "Organisation",
+  other: "Other detail",
 };
 
 export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
@@ -46,6 +47,7 @@ export const CATEGORY_LABEL: Record<OpportunityCategory, string> = {
   internship: "Internship",
   scholarship: "Scholarship",
   fellowship: "Fellowship",
+  job: "Job",
   research: "Research programme",
   grant: "Grant",
   competition: "Competition",
@@ -83,6 +85,7 @@ export const RUN_STATE_LABEL: Record<RunState, string> = {
   completed: "Completed",
   partial: "Partially completed",
   failed: "Failed",
+  cancelled: "Cancelled",
 };
 
 export function initials(name: string | null | undefined): string {

@@ -57,11 +57,24 @@ class OpportunityPage(BaseModel):
     offset: int
 
 
+class HistoryClaim(BaseModel):
+    claim_type: str
+    status: str
+    normalized_value: str | None
+
+
+class HistoryUnavailableSource(BaseModel):
+    url: str
+    reason: str  # retrieval outcome; a failed retrieval is never proof of closure
+
+
 class HistoryEntry(BaseModel):
     run_id: str
     generated_at: dt.datetime
     status: OpportunityStatus
     summary: VerificationSummary
+    claims: list[HistoryClaim] = []  # claim statuses in this snapshot, so two snapshots can be compared
+    unavailable_sources: list[HistoryUnavailableSource] = []
     changes_since_previous: ReportDiff | None  # None for the oldest snapshot
 
 
@@ -93,8 +106,13 @@ def get_history(opportunity_id: OppId, limit: Annotated[int, Query(ge=1, le=50)]
     entries = []
     for i, r in enumerate(reports[:limit]):
         prev = reports[i + 1] if i + 1 < len(reports) else None
-        entries.append(HistoryEntry(run_id=r.run_id, generated_at=r.generated_at, status=r.status,
-                                    summary=r.summary, changes_since_previous=diff_reports(prev, r) if prev else None))
+        entries.append(HistoryEntry(
+            run_id=r.run_id, generated_at=r.generated_at, status=r.status, summary=r.summary,
+            claims=[HistoryClaim(claim_type=c.claim_type.value, status=c.status.value,
+                                 normalized_value=c.normalized_value) for c in r.claims],
+            unavailable_sources=[HistoryUnavailableSource(url=o.url, reason=o.retrieval_outcome.value)
+                                 for o in r.sources if o.retrieval_outcome.value != "ok"],
+            changes_since_previous=diff_reports(prev, r) if prev else None))
     return HistoryResponse(opportunity_id=opportunity_id, runs=entries)
 
 

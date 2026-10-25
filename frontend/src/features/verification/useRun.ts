@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Run } from "@/types";
 import { getRun } from "./api";
 
-const TERMINAL = new Set(["completed", "partial", "failed"]);
+const TERMINAL = new Set(["completed", "partial", "failed", "cancelled"]);
 
 /**
  * Follows a real backend run by polling `GET /api/v1/runs/{id}` (docs/api.md).

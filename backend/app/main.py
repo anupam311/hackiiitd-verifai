@@ -23,9 +23,10 @@ from app.auth.providers import GoogleProvider, OAuthProvider
 from app.config import Settings, get_settings
 from app.discovery.base import DiscoveryProvider
 from app.discovery.retry import RetryPolicy
+from app.discovery.tinyfish import TinyFishProvider, tinyfish_sdk_installed
 from app.errors import error_response, new_request_id, register_error_handlers
 from app.repositories.base import Store
-from app.repositories.sqlite import SqliteStore, sqlite_path
+from app.repositories.factory import make_store
 from app.routes import auth, discovery, health, opportunities, profile, runs, saved
 from app.runs.manager import RunManager
 
@@ -46,7 +47,7 @@ def create_app(
     settings: Settings | None = None,
     *,
     store: Store | None = None,
-    provider: DiscoveryProvider | None = None,  # real TinyFish adapter is not implemented yet
+    provider: DiscoveryProvider | None = None,  # default: TinyFish when TINYFISH_API_KEY is set
     llm: LLMClient | None = None,
     run_manager: RunManager | None = None,
     retry_policy: RetryPolicy | None = None,
@@ -59,6 +60,17 @@ def create_app(
 
     if llm is None and settings.openai_api_key and settings.openai_model:
         llm = OpenAIClient(settings.openai_api_key.get_secret_value(), settings.openai_model)
+
+    if provider is None and settings.tinyfish_api_key:
+        if tinyfish_sdk_installed():
+            provider = TinyFishProvider(
+                settings.tinyfish_api_key.get_secret_value(),
+                max_pages=settings.tinyfish_max_pages, max_concurrency=settings.tinyfish_max_concurrency,
+                agent_timeout_s=settings.tinyfish_agent_timeout_s, stealth=settings.tinyfish_stealth,
+                seed_pages=settings.tinyfish_seed_page_list)
+        else:  # keep the API up; discovery answers 503 "not configured" instead of crashing at startup
+            logger.error("TINYFISH_API_KEY is set but the 'tinyfish' package is not installed; "
+                         "discovery is disabled. Run: pip install tinyfish")
 
     if oauth_providers is None:
         oauth_providers = {}
@@ -84,6 +96,12 @@ def create_app(
         )
         yield
         await app.state.runs.shutdown()
+        close_store = getattr(app.state.store, "close", None)
+        if owns_store and close_store is not None:  # never close a store the caller injected
+            close_store()
+        close = getattr(app.state.provider, "aclose", None)
+        if close is not None:
+            await close()
         logger.info("verifai shutdown complete")
 
     app = FastAPI(
@@ -167,10 +185,14 @@ def create_app(
     # ------------------------------------------------------------------ #
     # App state                                                            #
     # ------------------------------------------------------------------ #
-    app.state.store = store or SqliteStore(sqlite_path(settings.database_url))
+    owns_store = store is None
+    app.state.store = store or make_store(settings.database_url)
     app.state.provider, app.state.llm = provider, llm
     app.state.settings, app.state.oauth_providers = settings, oauth_providers
     app.state.runs = run_manager or RunManager()
+    if retry_policy is None and isinstance(provider, TinyFishProvider):
+        # Agent runs take far longer than the default 30 s call timeout; retry once at most (each run costs credits).
+        retry_policy = RetryPolicy(max_attempts=2, timeout_s=provider.call_timeout_s)
     app.state.retry_policy = retry_policy or RetryPolicy()
     app.state.extract_retry_policy = extract_retry_policy or RetryPolicy(max_attempts=3, timeout_s=60.0)
 
