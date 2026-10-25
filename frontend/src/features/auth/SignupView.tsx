@@ -42,7 +42,7 @@ export function SignupView() {
       <aside className="login-brand">
         <LogoMark size={44} />
         <h1>VERIFAI</h1>
-        <p className="login-tag">Don't just find it. Verify it.</p>
+        <p className="login-tag">Don&apos;t just find it. Verify it.</p>
         <p className="muted-light">
           Create your account to save opportunities, manage your profile,
           and keep track of verification history across devices.
@@ -82,7 +82,7 @@ export function SignupView() {
           <summary>How account creation works</summary>
           <div className="disclosure-body small">
             <p>
-              VERIFAI uses OAuth — you sign in with Google or GitHub and we
+              VERIFAI uses OAuth &mdash; you sign in with Google or GitHub and we
               create your account automatically on the first sign-in.
               No email or password is collected or stored by VERIFAI.
             </p>
