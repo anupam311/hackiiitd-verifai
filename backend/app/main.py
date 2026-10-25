@@ -103,6 +103,27 @@ def create_app(
             list(oauth_providers.keys()) if oauth_providers else [],
             settings.database_url.split("://")[0],  # scheme only, not path
         )
+        # Warn loudly when common production misconfigurations are detected.
+        if prod and "localhost" in settings.public_base_url:
+            logger.error(
+                "MISCONFIGURATION: VERIFAI_PUBLIC_BASE_URL='%s' is the localhost default. "
+                "Set it to your public frontend URL (e.g. https://hackiiitd-verifai.vercel.app) "
+                "so OAuth redirect_uris are correct and state cookie domains match. "
+                "Sign-in will return invalid_state until this is fixed.",
+                settings.public_base_url,
+            )
+        if prod and "localhost" in settings.frontend_url:
+            logger.error(
+                "MISCONFIGURATION: VERIFAI_FRONTEND_URL='%s' is the localhost default. "
+                "Set it to your public frontend URL so post-login redirects work.",
+                settings.frontend_url,
+            )
+        # Log the exact redirect URIs so they can be verified against the OAuth app settings.
+        for _name in oauth_providers:
+            logger.info(
+                "oauth redirect_uri provider=%s uri=%s/auth/%s/callback",
+                _name, settings.public_base_url.rstrip("/"), _name,
+            )
         yield
         # Shutdown: release resources.
         await app.state.runs.shutdown()
